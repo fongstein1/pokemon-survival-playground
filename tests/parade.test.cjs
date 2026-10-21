@@ -427,43 +427,41 @@ async function runTests() {
         fail('8b. Keep Parading Goal Increment', JSON.stringify(keepParadeRes));
       }
 
-      // 8c. Requirement 3: 50 Pokémon triggers Weezing boss encounter & Victory
+      // 8c. Multi-Boss system: 50 Pokémon triggers Boss 1 (Weezing), 100 Pokémon triggers Boss 2 (Arbok)
       const bossRes = await client.eval(`
         (function() {
           const g = G.Parade.Game;
-          // Fill parade up to 50
           const speciesList = [25, 921, 363, 1, 4, 7, 133, 143, 52, 79, 37, 194, 258, 255, 393, 722, 60];
           while (g.parade.count < 50) {
             g.parade.add(speciesList[g.parade.count % speciesList.length], 0, 0);
           }
-          // Trigger boss
-          g.triggerBoss();
-          const bossActive = g.boss && g.boss.active && g.boss.boss.dex === 110;
+          // Trigger boss 1
+          g.triggerBoss(1);
+          const boss1Dex = g.boss && g.boss.active && g.boss.boss.dex;
           
-          // Simulate 50 pokemon swarm attack updates
-          for (let i = 0; i < 40; i++) {
-            g.parade.update(0.1, g.trail, false, g.boss);
-            g.boss.update(0.1, () => g.triggerVictory());
-          }
-
-          // Force damage boss to faint to verify victory transition
+          // Defeat boss 1
           if (g.boss && g.boss.boss) {
-            g.boss.damageBoss(120);
-            for (let i = 0; i < 30; i++) {
-              g.boss.update(0.1, () => g.triggerVictory());
-            }
+            g.boss.damageBoss(200);
+            for (let i = 0; i < 30; i++) g.boss.update(0.1);
           }
+          const boss1Defeated = g.state === 'won';
 
-          const wonState = g.state === 'won';
-          const bossDefeated = g.boss && g.boss.defeated;
-          return { bossActive, bossDefeated, wonState };
+          // Continue parading & grow to 100 followers
+          g.keepPlaying();
+          while (g.parade.count < 100) {
+            g.parade.add(speciesList[g.parade.count % speciesList.length], 0, 0);
+          }
+          g.triggerBoss(2);
+          const boss2Dex = g.boss && g.boss.active && g.boss.boss.dex;
+
+          return { boss1Dex, boss1Defeated, boss2Dex };
         })()
       `);
 
-      if (bossRes.bossActive && bossRes.wonState) {
-        pass('8c. 50 Pokémon Weezing Boss & Victory', '50 followers triggered Weezing, all Pokémon attacked, Weezing fainted, user won');
+      if (bossRes.boss1Dex === 110 && bossRes.boss1Defeated && bossRes.boss2Dex === 24) {
+        pass('8c. Multi-Boss Progression', `Every 50 Pokémon triggers a new boss (50: Weezing #110, 100: Arbok #24)`);
       } else {
-        fail('8c. 50 Pokémon Weezing Boss & Victory', JSON.stringify(bossRes));
+        fail('8c. Multi-Boss Progression', JSON.stringify(bossRes));
       }
 
       // Test replay button

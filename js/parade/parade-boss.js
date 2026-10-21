@@ -1,20 +1,38 @@
-/* ============ parade-boss.js — Weezing Boss Battle Encounter ============
- * Climax boss battle for "James and the Pokémon Parade":
- *  - Triggered when the parade reaches 50 Pokémon
- *  - Wild Weezing (Dex 110) appears with ominous poison gas and boss fanfare
- *  - All 50 Pokémon in the parade break formation and form an attacking swarm
- *  - Followers barrage Weezing with elemental projectiles and tackles
- *  - Weezing takes damage, shows HP bar, and faints with celebratory fanfare
- *  - Level is over: user wins the game!
+/* ============ parade-boss.js — Multi-Boss Battle Encounter ============
+ * Escalating boss battles for "James and the Pokémon Parade":
+ *  - Every 50 Pokémon caught triggers a new, unique boss:
+ *     50: Weezing   (Dex 110) — Poison smoke clouds
+ *    100: Arbok     (Dex 24)  — Toxic venom fangs
+ *    150: Gengar    (Dex 94)  — Shadow ghost orbs
+ *    200: Gyarados  (Dex 130) — Raging tidal blasts
+ *    250: Tyranitar (Dex 248) — Earthquake sandstorm
+ *    300: Dragonite (Dex 149) — Dragon firestorm
+ *    350: Rayquaza  (Dex 384) — Celestial emerald aura
+ *    400: Mewtwo    (Dex 150) — Ultimate psionic barrier
+ *  - All parade followers form an attacking swarm in concentric rings
+ *  - Elemental projectile barrages and dynamic damage scaling
+ *  - Celebratory victory and level over on defeat, preparing for the next boss!
  */
 window.G = window.G || {};
 G.Parade = G.Parade || {};
+
+G.Parade.BOSSES = [
+  { dex: 110, name: 'Weezing',   title: 'WILD WEEZING',    icon: '☠️', scale: 1.4,  baseHp: 100, particleColor: '#9c27b0' },
+  { dex: 24,  name: 'Arbok',     title: 'WILD ARBOK',      icon: '🐍', scale: 1.45, baseHp: 140, particleColor: '#7b1fa2' },
+  { dex: 94,  name: 'Gengar',    title: 'SHADOW GENGAR',   icon: '👻', scale: 1.4,  baseHp: 180, particleColor: '#512da8' },
+  { dex: 130, name: 'Gyarados',  title: 'RAGING GYARADOS', icon: '🌊', scale: 1.5,  baseHp: 220, particleColor: '#0288d1' },
+  { dex: 248, name: 'Tyranitar', title: 'MIGHTY TYRANITAR',icon: '🌋', scale: 1.5, baseHp: 260, particleColor: '#8d6e63' },
+  { dex: 149, name: 'Dragonite', title: 'WILD DRAGONITE',  icon: '🐲', scale: 1.45, baseHp: 300, particleColor: '#f57c00' },
+  { dex: 384, name: 'Rayquaza',  title: 'SKY RAYQUAZA',    icon: '🐉', scale: 1.55, baseHp: 350, particleColor: '#2e7d32' },
+  { dex: 150, name: 'Mewtwo',    title: 'LEGENDARY MEWTWO',icon: '🔮', scale: 1.5, baseHp: 400, particleColor: '#7e57c2' }
+];
 
 G.Parade.BossManager = class BossManager {
   constructor() {
     this.boss = null;
     this.active = false;
     this.defeated = false;
+    this.bossLevel = 1;
     this.projectiles = [];
     this.banner = null;
     this.bannerTimer = 0;
@@ -26,6 +44,7 @@ G.Parade.BossManager = class BossManager {
     this.boss = null;
     this.active = false;
     this.defeated = false;
+    this.bossLevel = 1;
     this.projectiles = [];
     this.banner = null;
     this.bannerTimer = 0;
@@ -37,57 +56,68 @@ G.Parade.BossManager = class BossManager {
   }
 
   /**
-   * Spawns Weezing boss in front of James
+   * Spawns the appropriate boss based on bossLevel (1, 2, 3...)
    */
-  spawn(trainerX, trainerY, trainerAngle = 0) {
-    if (this.active || this.defeated) return;
+  spawn(trainerX, trainerY, trainerAngle = 0, bossLevel = 1) {
+    if (this.active) return;
     this.active = true;
     this.defeated = false;
     this.victoryTriggered = false;
+    this.bossLevel = bossLevel;
 
-    // Spawn ~130px ahead of James in open space
-    const dist = 130;
+    // Pick boss definition
+    const bossIdx = (bossLevel - 1) % G.Parade.BOSSES.length;
+    const loopNum = Math.floor((bossLevel - 1) / G.Parade.BOSSES.length);
+    const def = G.Parade.BOSSES[bossIdx];
+    const maxHp = def.baseHp + loopNum * 150;
+
+    // Spawn ~135px ahead of James in open space
+    const dist = 135;
     let bx = trainerX + Math.cos(trainerAngle) * dist;
     let by = trainerY + Math.sin(trainerAngle) * dist;
     bx = G.U.clamp(bx, -420, 420);
     by = G.U.clamp(by, -420, 420);
 
     this.boss = {
-      dex: 110,
+      dex: def.dex,
+      name: def.name,
+      title: def.title,
+      icon: def.icon,
+      particleColor: def.particleColor,
       x: bx,
       y: by,
       baseY: by,
-      scale: 1.4, // Big boss scale
-      anim: new G.Sprites.Animator(110, 1.4, false),
-      hp: 100,
-      maxHp: 100,
+      scale: def.scale,
+      anim: new G.Sprites.Animator(def.dex, def.scale, false),
+      hp: maxHp,
+      maxHp: maxHp,
       state: 'battle', // 'battle', 'fainting', 'defeated'
       timer: 0,
       hurtTimer: 0,
-      smokeTimer: 0,
+      auraTimer: 0,
       faintTimer: 0
     };
 
     this.boss.anim.loop('Idle', 1.0);
 
     // Boss announcement
-    this.banner = '⚠️ WILD WEEZING APPEARED! ⚠️';
-    this.bannerTimer = 3.0;
+    this.banner = `⚠️ BOSS ${bossLevel}: ${def.title} APPEARED! ⚠️`;
+    this.bannerTimer = 3.2;
 
-    // Fanfare and rumble
+    // Audio & screen shake
     if (G.Audio && G.Audio.sfx) {
       G.Audio.sfx('boss');
       G.Audio.sfx('surge');
     }
     if (G.Camera && G.Camera.kick) {
-      G.Camera.kick(0.4);
+      G.Camera.kick(0.45);
     }
     if (G.Parade.FX) {
-      G.Parade.FX.popText(bx, by - 44, '☠️ WEEZING! ☠️', '#e53935');
+      G.Parade.FX.popText(bx, by - 46, `${def.icon} ${def.name.toUpperCase()}! ${def.icon}`, '#e53935');
     }
   }
 
-  addProjectile(startX, startY, targetX, targetY, type = 'star') {
+  addProjectile(startX, startY, targetX, targetY, type = 'star', damage = 0.45) {
     this.projectiles.push({
       x: startX,
       y: startY,
@@ -96,8 +126,9 @@ G.Parade.BossManager = class BossManager {
       targetX,
       targetY,
       type,
+      damage,
       progress: 0,
-      speed: 3.4, // Fast travel time (~0.3s)
+      speed: 3.4,
       color: type === 'electric' ? '#ffeb3b' :
              type === 'water' ? '#29b6f6' :
              type === 'fire' ? '#ff5722' :
@@ -116,14 +147,14 @@ G.Parade.BossManager = class BossManager {
       if (this.bannerTimer <= 0) this.banner = null;
     }
 
-    // 1. Poison smoke puffs from Weezing
-    b.smokeTimer += dt;
-    if (b.smokeTimer > 0.16 && b.state !== 'defeated') {
-      b.smokeTimer = 0;
+    // 1. Elemental / aura particle emission
+    b.auraTimer += dt;
+    if (b.auraTimer > 0.15 && b.state !== 'defeated') {
+      b.auraTimer = 0;
       if (G.Parade.FX) {
         const ox = G.U.rand(-26, 26);
-        const oy = G.U.rand(-32, 10);
-        G.Parade.FX.dust(b.x + ox, b.y + oy, Math.random() < 0.5 ? '#9c27b0' : '#7b1fa2');
+        const oy = G.U.rand(-32, 12);
+        G.Parade.FX.dust(b.x + ox, b.y + oy, b.particleColor);
       }
     }
 
@@ -132,9 +163,9 @@ G.Parade.BossManager = class BossManager {
       b.faintTimer += dt;
       b.anim.update(dt);
 
-      if (Math.random() < 0.35 && G.Parade.FX) {
-        G.Parade.FX.confetti(b.x + G.U.rand(-40, 40), b.y + G.U.rand(-40, 40), 6);
-        G.Parade.FX.stars(b.x + G.U.rand(-30, 30), b.y + G.U.rand(-30, 30), 4);
+      if (Math.random() < 0.4 && G.Parade.FX) {
+        G.Parade.FX.confetti(b.x + G.U.rand(-45, 45), b.y + G.U.rand(-45, 45), 6);
+        G.Parade.FX.stars(b.x + G.U.rand(-35, 35), b.y + G.U.rand(-35, 35), 4);
       }
 
       if (b.faintTimer > 2.2 && !this.victoryTriggered) {
@@ -143,13 +174,16 @@ G.Parade.BossManager = class BossManager {
         this.active = false;
         this.defeated = true;
         const cb = onVictory || this.onVictoryCb;
-        if (cb) cb();
+        if (cb) {
+          const nextGoal = (this.bossLevel + 1) * 50;
+          cb(b.name, this.bossLevel, nextGoal);
+        }
       }
       return;
     }
 
     // 3. Normal battle state
-    // Floating sinusoidal bob
+    // Gentle floating motion
     b.y = b.baseY + Math.sin(b.timer * 3) * 6;
 
     if (b.hurtTimer > 0) {
@@ -169,7 +203,7 @@ G.Parade.BossManager = class BossManager {
 
       if (p.progress >= 1) {
         this.projectiles.splice(i, 1);
-        this.damageBoss(0.45);
+        this.damageBoss(p.damage || 0.45);
       }
     }
   }
@@ -185,7 +219,7 @@ G.Parade.BossManager = class BossManager {
     }
 
     if (Math.random() < 0.22 && G.Parade.FX) {
-      G.Parade.FX.stars(b.x + G.U.rand(-16, 16), b.y - 14 + G.U.rand(-16, 16), 2);
+      G.Parade.FX.stars(b.x + G.U.rand(-18, 18), b.y - 14 + G.U.rand(-18, 18), 2);
     }
 
     if (b.hp <= 0) {
@@ -199,12 +233,12 @@ G.Parade.BossManager = class BossManager {
         G.Audio.sfx('legend');
       }
       if (G.Camera && G.Camera.kick) {
-        G.Camera.kick(0.6);
+        G.Camera.kick(0.65);
       }
       if (G.Parade.FX) {
-        G.Parade.FX.popText(b.x, b.y - 45, '💥 WEEZING FAINTED! 💥', '#ffeb3b');
-        G.Parade.FX.confetti(b.x, b.y - 20, 45);
-        G.Parade.FX.stars(b.x, b.y - 20, 25);
+        G.Parade.FX.popText(b.x, b.y - 48, `💥 ${b.name.toUpperCase()} FAINTED! 💥`, '#ffeb3b');
+        G.Parade.FX.confetti(b.x, b.y - 20, 50);
+        G.Parade.FX.stars(b.x, b.y - 20, 30);
       }
     }
   }
@@ -233,13 +267,13 @@ G.Parade.BossManager = class BossManager {
 
     // 4. Boss Health Bar (only during battle)
     if (b.state === 'battle') {
-      const barW = 76;
-      const barH = 8;
+      const barW = 84;
+      const barH = 9;
       const barX = b.x - barW / 2;
-      const barY = b.y - 48;
+      const barY = b.y - 50;
 
-      // Dark background container
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+      // Dark shadow background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
       ctx.beginPath();
       ctx.roundRect(barX - 2, barY - 2, barW + 4, barH + 4, 4);
       ctx.fill();
@@ -251,11 +285,11 @@ G.Parade.BossManager = class BossManager {
       ctx.roundRect(barX, barY, barW * pct, barH, 3);
       ctx.fill();
 
-      // Boss Label
+      // Boss Label with Level & Icon
       ctx.font = 'bold 9px sans-serif';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = 'center';
-      ctx.fillText('☠️ WEEZING', b.x, barY - 4);
+      ctx.fillText(`${b.icon} ${b.name.toUpperCase()} (BOSS ${this.bossLevel})`, b.x, barY - 4);
     }
   }
 };

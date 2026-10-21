@@ -53,17 +53,19 @@ G.Parade.Follower = class Follower {
     // --- Boss battle swarm & attack mode ---
     if (boss && boss.active && boss.boss) {
       if (boss.boss.state === 'battle') {
-        const ring = this.slotIndex % 3;
-        const ringDist = 58 + ring * 28;
-        const total = Math.max(30, trail ? 50 : 30);
-        const ang = (this.slotIndex / total) * Math.PI * 2 + Math.sin(boss.boss.timer * 0.5 + ring);
+        const numRings = Math.min(6, Math.max(3, Math.ceil((this.slotIndex + 1) / 20)));
+        const ring = this.slotIndex % numRings;
+        const ringDist = 52 + ring * 24;
+        const ringCapacity = 16 + ring * 6;
+        const ringPos = Math.floor(this.slotIndex / numRings);
+        const ang = (ringPos / ringCapacity) * Math.PI * 2 + Math.sin(boss.boss.timer * 0.5 + ring);
         const targetX = boss.boss.x + Math.cos(ang) * ringDist;
         const targetY = boss.boss.y + Math.sin(ang) * ringDist * 0.72;
 
         this.x = G.U.damp(this.x, targetX, 10, dt);
         this.y = G.U.damp(this.y, targetY, 10, dt);
 
-        // Face towards Weezing
+        // Face towards Boss
         this.dir = G.Sprites.dirFromAngle(Math.atan2(boss.boss.y - this.y, boss.boss.x - this.x));
         this.anim.dir = this.dir;
         this.anim.loop('Walk', 1.2);
@@ -79,10 +81,13 @@ G.Parade.Follower = class Follower {
           else if ([7, 363, 183, 194, 258, 60].includes(this.dex)) type = 'water';
           else if ([4, 255, 37].includes(this.dex)) type = 'fire';
           else if ([1, 722].includes(this.dex)) type = 'grass';
+
+          const dmg = G.U.clamp(boss.boss.maxHp / (Math.max(40, this.slotIndex + 1) * 6), 0.12, 0.55);
           boss.addProjectile(
             this.x, this.y - 8,
             boss.boss.x + G.U.rand(-12, 12), boss.boss.y - 12 + G.U.rand(-12, 12),
-            type
+            type,
+            dmg
           );
         }
         return;

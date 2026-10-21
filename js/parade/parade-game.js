@@ -19,6 +19,7 @@ G.Parade.Game = (() => {
   let boss;
 
   let targetGoal = 10;
+  let lastBossMilestone = 0;
   let state = 'playing'; // 'playing', 'paused', 'celebrating', 'won'
   let lastTime = 0;
   let musicStarted = false;
@@ -47,7 +48,7 @@ G.Parade.Game = (() => {
     wild = new G.Parade.WildManager();
     balls = new G.Parade.BallManager();
     boss = new G.Parade.BossManager();
-    boss.init(() => triggerVictory());
+    boss.init((name, level, nextGoal) => triggerVictory(name, level, nextGoal));
     G.Parade.FX.reset();
 
     wild.populateInitial(20);
@@ -300,16 +301,16 @@ G.Parade.Game = (() => {
     G.Parade.HUD.setCelebration(true, parade.count);
   }
 
-  function triggerBoss() {
-    if (!boss || boss.active || boss.defeated) return;
-    boss.spawn(trainer.x, trainer.y, trainer.moveAngle);
+  function triggerBoss(level = 1) {
+    if (!boss || boss.active) return;
+    boss.spawn(trainer.x, trainer.y, trainer.moveAngle, level);
   }
 
-  function triggerVictory() {
+  function triggerVictory(bossName = 'Weezing', bossLevel = 1, nextGoal = 100) {
     state = 'won';
     trainer.setCheer(true);
     parade.setCelebrate(true);
-    G.Parade.HUD.setVictory(true, parade.count);
+    G.Parade.HUD.setVictory(true, parade.count, bossName, nextGoal);
 
     for (let i = 0; i < 6; i++) {
       setTimeout(() => {
@@ -322,6 +323,7 @@ G.Parade.Game = (() => {
   function restart() {
     state = 'playing';
     targetGoal = 10;
+    lastBossMilestone = 0;
     trainer = new G.Parade.Trainer(0, 45);
     trail.reset(trainer.x, trainer.y);
     parade.reset();
@@ -377,7 +379,7 @@ G.Parade.Game = (() => {
 
       // Update boss if active
       if (boss && boss.active) {
-        boss.update(dt, () => triggerVictory());
+        boss.update(dt, (name, level, nextGoal) => triggerVictory(name, level, nextGoal));
       }
 
       // Update wild Pokémon and Poké Balls when boss is not active
@@ -389,9 +391,11 @@ G.Parade.Game = (() => {
       // Update visual FX
       G.Parade.FX.update(dt);
 
-      // Check Boss battle trigger: 50 Pokémon caught
-      if (parade.count >= 50 && boss && !boss.active && !boss.defeated) {
-        triggerBoss();
+      // Check Boss battle trigger: every 50 Pokémon caught
+      const currentBossLevel = Math.floor(parade.count / 50);
+      if (currentBossLevel > lastBossMilestone && boss && !boss.active) {
+        lastBossMilestone = currentBossLevel;
+        triggerBoss(currentBossLevel);
       }
 
       // Check objective: return targetGoal Pokémon to Welcome Plaza

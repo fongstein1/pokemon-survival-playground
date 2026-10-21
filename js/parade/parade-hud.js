@@ -35,16 +35,20 @@ G.Parade.HUD = (() => {
       }
     },
 
-    setVictory(active, count = 50) {
+    setVictory(active, count = 50, bossName = 'Weezing', nextBossGoal = 100) {
       victoryActive = active;
       const el = document.getElementById('parade-victory');
       if (el) {
         if (active) el.classList.remove('hidden');
         else el.classList.add('hidden');
       }
+      const title = el ? el.querySelector('.modal-title') : null;
+      if (title && bossName) {
+        title.textContent = `🏆 ${bossName.toUpperCase()} DEFEATED! 🏆`;
+      }
       const body = document.getElementById('victory-modal-body');
       if (body && count) {
-        body.textContent = `Spectacular! Your ${count}-Pokémon parade defeated the wild Weezing! The Safari Park is saved!`;
+        body.textContent = `Spectacular! Your ${count}-Pokémon parade defeated ${bossName}! Keep going — the next boss awaits at ${nextBossGoal} Pokémon!`;
       }
     },
 
