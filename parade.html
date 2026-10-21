@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>James and the Pokémon Parade</title>
+  <meta name="description" content="Catch wild Pokémon and lead an animated parade following behind James!">
+  <link rel="icon" type="image/png" href="assets/icons/icon-48.png">
+  <link rel="stylesheet" href="css/parade.css">
+
+  <!-- Core reusable engine modules -->
+  <script src="js/core/util.js"></script>
+  <script src="js/core/settings.js"></script>
+  <script src="js/core/audio.js"></script>
+  <script src="js/core/input.js"></script>
+  <script src="js/core/touch.js"></script>
+  <script src="js/core/sprites.js"></script>
+  <script src="js/core/camera.js"></script>
+
+  <!-- Reusable data -->
+  <script src="js/data/sprites-meta.js"></script>
+  <script src="js/data/pokedex.js"></script>
+  <script src="js/data/music.js"></script>
+
+  <!-- Parade modules -->
+  <script src="js/parade/parade-trainer.js"></script>
+  <script src="js/parade/parade-path.js"></script>
+  <script src="js/parade/parade-followers.js"></script>
+  <script src="js/parade/parade-wild.js"></script>
+  <script src="js/parade/parade-balls.js"></script>
+  <script src="js/parade/parade-world.js"></script>
+  <script src="js/parade/parade-hud.js"></script>
+  <script src="js/parade/parade-game.js"></script>
+</head>
+<body>
+
+  <!-- Game Canvas -->
+  <canvas id="game-canvas"></canvas>
+
+  <!-- Touch Joystick Layer -->
+  <div id="touch-zone"></div>
+  <div id="joy-base" class="joy-base hidden">
+    <div id="joy-stick" class="joy-stick"></div>
+  </div>
+
+  <!-- HUD Action Buttons -->
+  <button id="btn-throw" class="hud-btn" title="Throw Poké Ball (Space)" aria-label="Throw Poké Ball"></button>
+  <button id="btn-recall" class="hud-btn" title="Whistle / Assemble Parade (R)" aria-label="Assemble Parade">📯</button>
+  <button id="btn-pause" class="hud-btn" title="Pause (P / Esc)" aria-label="Pause">⏸</button>
+
+  <!-- Desktop Keyboard Controls Hint -->
+  <div class="keyboard-hints">
+    Move: <span class="kbd">WASD</span> or <span class="kbd">Arrows</span> &nbsp;•&nbsp; 
+    Throw: <span class="kbd">Space</span> &nbsp;•&nbsp; 
+    Whistle: <span class="kbd">R</span>
+  </div>
+
+  <!-- Pause Modal -->
+  <div id="parade-pause-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h2 class="modal-title">Game Paused</h2>
+      <p class="modal-body">Take a quick breather! Your parade of Pokémon is waiting for you.</p>
+      <div class="modal-buttons">
+        <button id="btn-resume" class="btn-primary">Resume Game ▶</button>
+        <button id="btn-restart" class="btn-secondary">Restart Safari 🔄</button>
+        <a href="index.html" class="btn-link">Return to PokéSurvivor</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grand Celebration Modal -->
+  <div id="parade-celebrate" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h2 class="modal-title">🎉 Safari Complete! 🎉</h2>
+      <p class="modal-body">
+        Wonderful job! You brought 10 happy Pokémon back to the Pokémon Center in a grand parade!
+      </p>
+      <div class="modal-buttons">
+        <button id="btn-play-again" class="btn-primary">Play Again 🔄</button>
+        <button id="btn-keep-parading" class="btn-secondary">Keep Parading! 🎈</button>
+        <a href="index.html" class="btn-link">Return to PokéSurvivor</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Boot James and the Pokémon Parade
+    document.addEventListener('DOMContentLoaded', () => {
+      // Preload font if supported
+      const fontReady = document.fonts && document.fonts.load ? document.fonts.load('16px Pixelify') : Promise.resolve();
+      fontReady.catch(() => {}).then(() => {
+        G.Parade.Game.init();
+      });
+    });
+  </script>
+
+</body>
+</html>
