@@ -67,6 +67,19 @@ G.Parade.Game = (() => {
     setupTouchControls();
     setupButtonEvents();
 
+    // Prime audio immediately and unlock on first interaction without delay
+    ensureAudio();
+    const audioEvents = ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'click', 'keydown'];
+    const unlockAudioHandler = () => {
+      ensureAudio();
+      for (const ev of audioEvents) {
+        window.removeEventListener(ev, unlockAudioHandler, { capture: true });
+      }
+    };
+    for (const ev of audioEvents) {
+      window.addEventListener(ev, unlockAudioHandler, { capture: true, passive: true });
+    }
+
     resize();
 
     // Start loop
@@ -209,9 +222,10 @@ G.Parade.Game = (() => {
   }
 
   function ensureAudio() {
-    if (!musicStarted && G.Audio) {
-      musicStarted = true;
+    if (window.G && G.Audio) {
       if (G.Audio.music) G.Audio.music('village');
+      if (G.Audio.unlock) G.Audio.unlock();
+      musicStarted = true;
     }
   }
 

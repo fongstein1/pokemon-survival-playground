@@ -372,19 +372,48 @@ G.Parade.World = (() => {
   }
 
   function drawTree(ctx, x, y, r, fruit = false) {
-    // Shadow
+    if (window.G && G.Tiles && G.Tiles.propSprite) {
+      const sprite = G.Tiles.propSprite(0, 'tree');
+      if (sprite) {
+        const px = (G.Sprites && G.Sprites.PX) || 2;
+        // Shadow at the base
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        ctx.beginPath();
+        ctx.ellipse(x, y + 2, 18, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 30x40 art pixels rendered at 2x scale (60x80)
+        const w = 30 * px;
+        const h = 40 * px;
+        ctx.drawImage(sprite, x - 15 * px, y - 38 * px, w, h);
+
+        // Crisp pixel-art berries / apples
+        if (fruit) {
+          const berries = [[-14, -46], [12, -50], [4, -36], [-8, -60]];
+          for (const [bx, by] of berries) {
+            ctx.fillStyle = '#14200f'; // 1px dark contour
+            ctx.fillRect(x + bx - 1, y + by - 1, 6, 6);
+            ctx.fillStyle = '#e53935'; // berry red
+            ctx.fillRect(x + bx, y + by, 4, 4);
+            ctx.fillStyle = '#fff59d'; // shiny glint
+            ctx.fillRect(x + bx + 1, y + by, 1, 1);
+          }
+        }
+        return;
+      }
+    }
+
+    // Procedural fallback
     ctx.fillStyle = 'rgba(0,0,0,0.24)';
     ctx.beginPath();
     ctx.ellipse(x + 2, y + 2, r + 4, (r + 4) * 0.45, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Trunk
     ctx.fillStyle = '#5d4037';
     ctx.fillRect(x - 5, y - 18, 10, 20);
     ctx.fillStyle = '#4e342e';
     ctx.fillRect(x - 2, y - 18, 4, 20);
 
-    // Foliage canopy (layered lush green spheres)
     const canopies = [
       { ox: 0, oy: -32, cr: r + 6, col: '#2e7d32' },
       { ox: -10, oy: -28, cr: r + 2, col: '#388e3c' },
@@ -398,41 +427,41 @@ G.Parade.World = (() => {
       ctx.arc(x + c.ox, y + c.oy, c.cr, 0, Math.PI * 2);
       ctx.fill();
     }
-
-    // Fruit (apples / berries)
-    if (fruit) {
-      ctx.fillStyle = '#f44336';
-      const spots = [[-8, -32], [6, -35], [2, -26], [-3, -40]];
-      for (const [fx, fy] of spots) {
-        ctx.beginPath();
-        ctx.arc(x + fx, y + fy, 2.8, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
   }
 
   function drawRock(ctx, x, y, r) {
-    // Shadow
+    if (window.G && G.Tiles && G.Tiles.propSprite) {
+      const sprite = G.Tiles.propSprite(0, 'rock');
+      if (sprite) {
+        const px = (G.Sprites && G.Sprites.PX) || 2;
+        // Base shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.20)';
+        ctx.beginPath();
+        ctx.ellipse(x, y + 2, 16, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 22x17 art pixels rendered at 2x scale (44x34)
+        const w = 22 * px;
+        const h = 17 * px;
+        ctx.drawImage(sprite, x - 11 * px, y - 15 * px, w, h);
+        return;
+      }
+    }
+
+    // Procedural fallback
     ctx.fillStyle = 'rgba(0,0,0,0.22)';
     ctx.beginPath();
     ctx.ellipse(x + 2, y + 2, r + 3, (r + 3) * 0.45, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Rock body
     ctx.fillStyle = '#78909c';
     ctx.beginPath();
     ctx.ellipse(x, y - 4, r, r * 0.75, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Moss / Highlight
     ctx.fillStyle = '#90a4ae';
     ctx.beginPath();
     ctx.ellipse(x - 2, y - 7, r * 0.7, r * 0.45, -0.2, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#81c784'; // moss patch
-    ctx.beginPath();
-    ctx.arc(x - 4, y - 4, 3.5, 0, Math.PI * 2);
     ctx.fill();
   }
 

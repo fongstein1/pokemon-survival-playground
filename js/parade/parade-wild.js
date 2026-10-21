@@ -10,9 +10,11 @@ window.G = window.G || {};
 G.Parade = G.Parade || {};
 
 G.Parade.SPECIES = [
+  // Core favorites
   { dex: 25,  name: 'Pikachu',    weight: 12 },
   { dex: 921, name: 'Pawmi',      weight: 12 },
   { dex: 363, name: 'Spheal',     weight: 12 },
+  // Classic starters & iconic cute companions
   { dex: 1,   name: 'Bulbasaur',  weight: 8 },
   { dex: 4,   name: 'Charmander', weight: 8 },
   { dex: 7,   name: 'Squirtle',   weight: 8 },
@@ -21,7 +23,18 @@ G.Parade.SPECIES = [
   { dex: 54,  name: 'Psyduck',    weight: 8 },
   { dex: 175, name: 'Togepi',     weight: 8 },
   { dex: 183, name: 'Marill',     weight: 8 },
-  { dex: 399, name: 'Bidoof',     weight: 8 }
+  { dex: 399, name: 'Bidoof',     weight: 8 },
+  // 10 Additional Species
+  { dex: 143, name: 'Snorlax',    weight: 7 },
+  { dex: 52,  name: 'Meowth',     weight: 8 },
+  { dex: 79,  name: 'Slowpoke',   weight: 8 },
+  { dex: 37,  name: 'Vulpix',     weight: 8 },
+  { dex: 194, name: 'Wooper',     weight: 8 },
+  { dex: 258, name: 'Mudkip',     weight: 8 },
+  { dex: 255, name: 'Torchic',    weight: 8 },
+  { dex: 393, name: 'Piplup',     weight: 8 },
+  { dex: 722, name: 'Rowlet',     weight: 8 },
+  { dex: 60,  name: 'Poliwag',    weight: 8 }
 ];
 
 G.Parade.WildMon = class WildMon {
@@ -112,7 +125,7 @@ G.Parade.WildMon = class WildMon {
 G.Parade.WildManager = class WildManager {
   constructor() {
     this.wildMons = [];
-    this.maxWild = 22; // Keep ~22 wild Pokémon active
+    this.maxWild = 28; // Keep ~28 wild Pokémon active across the 22 species
     this.spawnTimer = 0;
   }
 
