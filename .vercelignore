@@ -1,0 +1,5 @@
+# Vercel Ignore File
+# Ignore backend broker, build tools, and test suites so Vercel serves pure static files
+infra
+tools
+tests
