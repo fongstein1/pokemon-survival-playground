@@ -29,6 +29,7 @@
   <script src="js/parade/parade-followers.js"></script>
   <script src="js/parade/parade-wild.js"></script>
   <script src="js/parade/parade-balls.js"></script>
+  <script src="js/parade/parade-boss.js"></script>
   <script src="js/parade/parade-world.js"></script>
   <script src="js/parade/parade-hud.js"></script>
   <script src="js/parade/parade-game.js"></script>
@@ -64,7 +65,6 @@
       <div class="modal-buttons">
         <button id="btn-resume" class="btn-primary">Resume Game ▶</button>
         <button id="btn-restart" class="btn-secondary">Restart Safari 🔄</button>
-        <a href="index.html" class="btn-link">Return to PokéSurvivor</a>
       </div>
     </div>
   </div>
@@ -73,13 +73,26 @@
   <div id="parade-celebrate" class="modal-overlay hidden">
     <div class="modal-card">
       <h2 class="modal-title">🎉 Safari Complete! 🎉</h2>
-      <p class="modal-body">
-        Wonderful job! You brought 10 happy Pokémon back to the Pokémon Center in a grand parade!
+      <p class="modal-body" id="celebrate-modal-body">
+        Wonderful job! You brought your happy Pokémon back to the Pokémon Center in a grand parade!
       </p>
       <div class="modal-buttons">
         <button id="btn-play-again" class="btn-primary">Play Again 🔄</button>
         <button id="btn-keep-parading" class="btn-secondary">Keep Parading! 🎈</button>
-        <a href="index.html" class="btn-link">Return to PokéSurvivor</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grand Victory Modal (Weezing defeated) -->
+  <div id="parade-victory" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h2 class="modal-title">🏆 YOU WIN! 🏆</h2>
+      <p class="modal-body" id="victory-modal-body">
+        Spectacular! Your 50-Pokémon parade defeated the wild Weezing! The Safari Park is saved!
+      </p>
+      <div class="modal-buttons">
+        <button id="btn-victory-replay" class="btn-primary">Play Again 🔄</button>
+        <button id="btn-victory-keep" class="btn-secondary">Free Parade Mode 🎈</button>
       </div>
     </div>
   </div>

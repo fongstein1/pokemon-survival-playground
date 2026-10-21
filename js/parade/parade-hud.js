@@ -12,6 +12,7 @@ G.Parade = G.Parade || {};
 
 G.Parade.HUD = (() => {
   let celebrationActive = false;
+  let victoryActive = false;
   let onReplayCb = null;
   let onKeepPlayingCb = null;
 
@@ -21,16 +22,33 @@ G.Parade.HUD = (() => {
       onKeepPlayingCb = onKeepPlaying;
     },
 
-    setCelebration(active) {
+    setCelebration(active, count = null) {
       celebrationActive = active;
       const el = document.getElementById('parade-celebrate');
       if (el) {
         if (active) el.classList.remove('hidden');
         else el.classList.add('hidden');
       }
+      const body = document.getElementById('celebrate-modal-body');
+      if (body && count) {
+        body.textContent = `Wonderful job! You brought ${count} happy Pokémon back to the Pokémon Center in a grand parade!`;
+      }
     },
 
-    draw(ctx, count, targetCount, trainerX, trainerY, isPaused) {
+    setVictory(active, count = 50) {
+      victoryActive = active;
+      const el = document.getElementById('parade-victory');
+      if (el) {
+        if (active) el.classList.remove('hidden');
+        else el.classList.add('hidden');
+      }
+      const body = document.getElementById('victory-modal-body');
+      if (body && count) {
+        body.textContent = `Spectacular! Your ${count}-Pokémon parade defeated the wild Weezing! The Safari Park is saved!`;
+      }
+    },
+
+    draw(ctx, count, targetCount, trainerX, trainerY, isPaused, boss = null) {
       const cw = ctx.canvas.width;
       const ch = ctx.canvas.height;
       const dpr = window.devicePixelRatio || 1;
@@ -87,8 +105,25 @@ G.Parade.HUD = (() => {
         ctx.fillText('⭐', badgeX + badgeW - 28, badgeY + 23);
       }
 
-      // 2. Minimalist Center Indicator (small compass token) once 10 Pokémon are caught
-      if (count >= targetCount && !celebrationActive) {
+      // 2. Boss Alert Banner across the top if active
+      if (boss && boss.banner) {
+        ctx.fillStyle = 'rgba(183, 28, 28, 0.92)';
+        ctx.beginPath();
+        ctx.roundRect(sw / 2 - 130, 16, 260, 34, 17);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(boss.banner, sw / 2, 33);
+      }
+
+      // 3. Minimalist Center Indicator (small compass token) once goal is met
+      if (count >= targetCount && !celebrationActive && !victoryActive && (!boss || !boss.active)) {
         const centerWorldX = 0;
         const centerWorldY = 20;
         const dx = centerWorldX - trainerX;

@@ -16,9 +16,10 @@ G.Parade.Game = (() => {
   let parade;
   let wild;
   let balls;
+  let boss;
 
-  const TARGET_GOAL = 10;
-  let state = 'playing'; // 'playing', 'paused', 'celebrating'
+  let targetGoal = 10;
+  let state = 'playing'; // 'playing', 'paused', 'celebrating', 'won'
   let lastTime = 0;
   let musicStarted = false;
 
@@ -45,6 +46,8 @@ G.Parade.Game = (() => {
     parade = new G.Parade.ParadeManager();
     wild = new G.Parade.WildManager();
     balls = new G.Parade.BallManager();
+    boss = new G.Parade.BossManager();
+    boss.init(() => triggerVictory());
     G.Parade.FX.reset();
 
     wild.populateInitial(20);
@@ -144,6 +147,13 @@ G.Parade.Game = (() => {
 
     const btnKeepParading = document.getElementById('btn-keep-parading');
     if (btnKeepParading) btnKeepParading.addEventListener('click', () => keepPlaying());
+
+    // Victory modal buttons
+    const btnVicReplay = document.getElementById('btn-victory-replay');
+    if (btnVicReplay) btnVicReplay.addEventListener('click', () => restart());
+
+    const btnVicKeep = document.getElementById('btn-victory-keep');
+    if (btnVicKeep) btnVicKeep.addEventListener('click', () => keepPlaying());
   }
 
   function setupTouchControls() {
@@ -259,7 +269,7 @@ G.Parade.Game = (() => {
   }
 
   function togglePause(force = null) {
-    if (state === 'celebrating') return;
+    if (state === 'celebrating' || state === 'won') return;
     state = (force !== null) ? (force ? 'paused' : 'playing') : (state === 'paused' ? 'playing' : 'paused');
     const modal = document.getElementById('parade-pause-modal');
     if (modal) {
@@ -269,7 +279,7 @@ G.Parade.Game = (() => {
   }
 
   function triggerCelebration() {
-    if (state === 'celebrating') return;
+    if (state === 'celebrating' || state === 'won') return;
     state = 'celebrating';
     trainer.setCheer(true);
     parade.setCelebrate(true);
@@ -287,19 +297,41 @@ G.Parade.Game = (() => {
       }, i * 350);
     }
 
-    G.Parade.HUD.setCelebration(true);
+    G.Parade.HUD.setCelebration(true, parade.count);
+  }
+
+  function triggerBoss() {
+    if (!boss || boss.active || boss.defeated) return;
+    boss.spawn(trainer.x, trainer.y, trainer.moveAngle);
+  }
+
+  function triggerVictory() {
+    state = 'won';
+    trainer.setCheer(true);
+    parade.setCelebrate(true);
+    G.Parade.HUD.setVictory(true, parade.count);
+
+    for (let i = 0; i < 6; i++) {
+      setTimeout(() => {
+        G.Parade.FX.confetti(trainer.x + G.U.rand(-120, 120), trainer.y - 50 + G.U.rand(-40, 40), 30);
+        G.Parade.FX.stars(trainer.x + G.U.rand(-100, 100), trainer.y - 40 + G.U.rand(-30, 30), 16);
+      }, i * 300);
+    }
   }
 
   function restart() {
     state = 'playing';
+    targetGoal = 10;
     trainer = new G.Parade.Trainer(0, 45);
     trail.reset(trainer.x, trainer.y);
     parade.reset();
     wild.reset();
     wild.populateInitial(20);
     balls.reset();
+    if (boss) boss.reset();
     G.Parade.FX.reset();
     G.Parade.HUD.setCelebration(false);
+    G.Parade.HUD.setVictory(false);
 
     const pauseModal = document.getElementById('parade-pause-modal');
     if (pauseModal) pauseModal.classList.add('hidden');
@@ -310,7 +342,11 @@ G.Parade.Game = (() => {
     trainer.setCheer(false);
     parade.setCelebrate(false);
     G.Parade.HUD.setCelebration(false);
-    G.Parade.FX.popText(trainer.x, trainer.y - 30, 'Keep Parading! 🎈', '#ffca28');
+    G.Parade.HUD.setVictory(false);
+
+    // Requirement: It shouldn't let you come back until you have 10 more Pokemon
+    targetGoal = parade.count + 10;
+    G.Parade.FX.popText(trainer.x, trainer.y - 30, `Goal: Catch ${targetGoal} Pokémon! 🎈`, '#ffca28');
   }
 
   function onPokemonCaptured(dex, x, y, shiny) {
@@ -336,20 +372,30 @@ G.Parade.Game = (() => {
       // Record path trail
       trail.update(trainer.x, trainer.y, trainer.moveAngle);
 
-      // Update following parade
-      parade.update(dt, trail, trainer.walking);
+      // Update following parade (passes boss for swarm attack mode)
+      parade.update(dt, trail, trainer.walking, boss);
 
-      // Update wild Pokémon
-      wild.update(dt, trainer.x, trainer.y);
+      // Update boss if active
+      if (boss && boss.active) {
+        boss.update(dt, () => triggerVictory());
+      }
 
-      // Update Poké Balls and captures
-      balls.update(dt, trainer, wild, onPokemonCaptured);
+      // Update wild Pokémon and Poké Balls when boss is not active
+      if (!boss || !boss.active) {
+        wild.update(dt, trainer.x, trainer.y);
+        balls.update(dt, trainer, wild, onPokemonCaptured);
+      }
 
       // Update visual FX
       G.Parade.FX.update(dt);
 
-      // Check objective: 10 Pokémon returned to Welcome Plaza
-      if (state === 'playing' && parade.count >= TARGET_GOAL && G.Parade.World.isInWelcomePlaza(trainer.x, trainer.y)) {
+      // Check Boss battle trigger: 50 Pokémon caught
+      if (parade.count >= 50 && boss && !boss.active && !boss.defeated) {
+        triggerBoss();
+      }
+
+      // Check objective: return targetGoal Pokémon to Welcome Plaza
+      if (state === 'playing' && (!boss || !boss.active) && parade.count >= targetGoal && G.Parade.World.isInWelcomePlaza(trainer.x, trainer.y)) {
         triggerCelebration();
       }
 
@@ -383,6 +429,11 @@ G.Parade.Game = (() => {
     // 5. Flying and wobbling Poké Balls
     balls.draw(ctx);
 
+    // 5b. Weezing Boss (if active or fainting)
+    if (boss) {
+      boss.draw(ctx);
+    }
+
     // 6. Trees, rocks, and Pokémon Center building (Y-sorted)
     G.Parade.World.drawScenery(ctx);
 
@@ -392,18 +443,22 @@ G.Parade.Game = (() => {
     ctx.restore();
 
     // 8. Screen space HUD
-    G.Parade.HUD.draw(ctx, parade.count, TARGET_GOAL, trainer.x, trainer.y, state === 'paused');
+    G.Parade.HUD.draw(ctx, parade.count, targetGoal, trainer.x, trainer.y, state === 'paused', boss);
   }
 
   return {
     init,
     restart,
     keepPlaying,
+    triggerBoss,
+    triggerVictory,
     get trainer() { return trainer; },
     get trail() { return trail; },
     get parade() { return parade; },
     get wild() { return wild; },
     get balls() { return balls; },
+    get boss() { return boss; },
+    get targetGoal() { return targetGoal; },
     get state() { return state; }
   };
 })();

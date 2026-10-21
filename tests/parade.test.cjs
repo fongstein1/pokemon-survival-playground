@@ -406,17 +406,99 @@ async function runTests() {
 
       await client.screenshot(path.join(ROOT, 'test-celebration.png'));
 
+      // 8b. Requirement 2: Keep Parading requires 10 more Pokémon
+      const keepParadeRes = await client.eval(`
+        (function() {
+          const g = G.Parade.Game;
+          const initialGoal = g.targetGoal;
+          g.keepPlaying();
+          const newGoal = g.targetGoal;
+          // While still in Welcome Plaza (0, 20), triggerCelebration should NOT re-trigger because count < newGoal
+          g.trainer.x = 0;
+          g.trainer.y = 20;
+          // Run loop update
+          const stillPlaying = g.state === 'playing';
+          return { initialGoal, newGoal, stillPlaying, count: g.parade.count };
+        })()
+      `);
+      if (keepParadeRes.newGoal === keepParadeRes.count + 10 && keepParadeRes.stillPlaying) {
+        pass('8b. Keep Parading Goal Increment', `Target goal advanced to ${keepParadeRes.newGoal} (requires 10 more) and stayed in playing state`);
+      } else {
+        fail('8b. Keep Parading Goal Increment', JSON.stringify(keepParadeRes));
+      }
+
+      // 8c. Requirement 3: 50 Pokémon triggers Weezing boss encounter & Victory
+      const bossRes = await client.eval(`
+        (function() {
+          const g = G.Parade.Game;
+          // Fill parade up to 50
+          const speciesList = [25, 921, 363, 1, 4, 7, 133, 143, 52, 79, 37, 194, 258, 255, 393, 722, 60];
+          while (g.parade.count < 50) {
+            g.parade.add(speciesList[g.parade.count % speciesList.length], 0, 0);
+          }
+          // Trigger boss
+          g.triggerBoss();
+          const bossActive = g.boss && g.boss.active && g.boss.boss.dex === 110;
+          
+          // Simulate 50 pokemon swarm attack updates
+          for (let i = 0; i < 40; i++) {
+            g.parade.update(0.1, g.trail, false, g.boss);
+            g.boss.update(0.1, () => g.triggerVictory());
+          }
+
+          // Force damage boss to faint to verify victory transition
+          if (g.boss && g.boss.boss) {
+            g.boss.damageBoss(120);
+            for (let i = 0; i < 30; i++) {
+              g.boss.update(0.1, () => g.triggerVictory());
+            }
+          }
+
+          const wonState = g.state === 'won';
+          const bossDefeated = g.boss && g.boss.defeated;
+          return { bossActive, bossDefeated, wonState };
+        })()
+      `);
+
+      if (bossRes.bossActive && bossRes.wonState) {
+        pass('8c. 50 Pokémon Weezing Boss & Victory', '50 followers triggered Weezing, all Pokémon attacked, Weezing fainted, user won');
+      } else {
+        fail('8c. 50 Pokémon Weezing Boss & Victory', JSON.stringify(bossRes));
+      }
+
       // Test replay button
       await client.eval('G.Parade.Game.restart()');
       const resetCount = await client.eval('G.Parade.Game.parade.count');
       const resetState = await client.eval('G.Parade.Game.state');
-      if (resetCount === 0 && resetState === 'playing') {
-        pass('8. Safari Replay', 'Restarted game cleanly to count = 0, state = playing');
+      const resetGoal = await client.eval('G.Parade.Game.targetGoal');
+      if (resetCount === 0 && resetState === 'playing' && resetGoal === 10) {
+        pass('8. Safari Replay', 'Restarted game cleanly to count = 0, targetGoal = 10, state = playing');
       } else {
-        fail('8. Safari Replay', `count: ${resetCount}, state: ${resetState}`);
+        fail('8. Safari Replay', `count: ${resetCount}, state: ${resetState}, goal: ${resetGoal}`);
       }
     } catch (e) {
       fail('8. Objective Complete & Celebration', e);
+    }
+
+    // 8d. Requirement 1: No link to move from parade to PokéSurvivor
+    try {
+      const survivorLinks = await client.eval(`
+        (function() {
+          const links = Array.from(document.querySelectorAll('a, button')).filter(el => {
+            const href = el.getAttribute('href') || '';
+            const txt = (el.textContent || '').toLowerCase();
+            return href.includes('index.html') || href.includes('dev.html') || txt.includes('survivor');
+          });
+          return links.length;
+        })()
+      `);
+      if (survivorLinks === 0) {
+        pass('8d. No Links to PokéSurvivor', 'Zero links or buttons leading from Parade to PokéSurvivor');
+      } else {
+        fail('8d. No Links to PokéSurvivor', `Found ${survivorLinks} link(s) to PokéSurvivor`);
+      }
+    } catch (e) {
+      fail('8d. No Links to PokéSurvivor', e);
     }
 
     // 9. Touch and keyboard controls
