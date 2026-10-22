@@ -1,11 +1,12 @@
 /* ============ parade-hud.js — simple, icon-driven HUD and Celebration UI ============
  * Child-friendly interface designed for a 5-year-old:
  *  - Big Poké Ball count badge: X / 10
- *  - Subtle animated compass indicator pointing to Pokémon Center once 10 are caught
+ *  - Subtle animated compass indicator pointing to Pokémon Center once goal is met
  *  - Touch Throw button (big friendly Poké Ball)
  *  - Touch Whistle / Recall button
- *  - Pause modal
- *  - Grand Celebration banner & Replay controls
+ *  - Pause modal with run shiny summary
+ *  - Grand Celebration banner with run shiny summary
+ *  - Boss Victory modal with multi-boss progression & shiny summary
  */
 window.G = window.G || {};
 G.Parade = G.Parade || {};
@@ -16,13 +17,34 @@ G.Parade.HUD = (() => {
   let onReplayCb = null;
   let onKeepPlayingCb = null;
 
+  function renderShinyBox(container, summary) {
+    if (!container) return;
+    if (!summary || summary.shinyCount === 0) {
+      container.innerHTML = `
+        <div class="shiny-summary-title">✨ Shiny Pokémon: 0 ✨</div>
+        <p class="shiny-empty-text">Rare Shiny Pokémon sparkle in the meadows — keep an eye out as your parade grows!</p>
+      `;
+    } else {
+      container.innerHTML = `
+        <div class="shiny-summary-title">✨ Shiny Pokémon Caught: <strong>${summary.shinyCount}</strong> ✨</div>
+        <div class="shiny-chips">
+          ${summary.shinies.map(s => `
+            <span class="shiny-chip" title="Shiny ${s.name} (${s.type || 'Normal'})">
+              ⭐ Shiny ${s.name}
+            </span>
+          `).join('')}
+        </div>
+      `;
+    }
+  }
+
   return {
     init(onReplay, onKeepPlaying) {
       onReplayCb = onReplay;
       onKeepPlayingCb = onKeepPlaying;
     },
 
-    setCelebration(active, count = null) {
+    setCelebration(active, count = null, shinySummary = null) {
       celebrationActive = active;
       const el = document.getElementById('parade-celebrate');
       if (el) {
@@ -33,9 +55,10 @@ G.Parade.HUD = (() => {
       if (body && count) {
         body.textContent = `Wonderful job! You brought ${count} happy Pokémon back to the Pokémon Center in a grand parade!`;
       }
+      renderShinyBox(document.getElementById('celebrate-shiny-box'), shinySummary);
     },
 
-    setVictory(active, count = 50, bossName = 'Weezing', nextBossGoal = 100) {
+    setVictory(active, count = 50, bossName = 'Weezing', nextBossGoal = 100, shinySummary = null) {
       victoryActive = active;
       const el = document.getElementById('parade-victory');
       if (el) {
@@ -50,6 +73,16 @@ G.Parade.HUD = (() => {
       if (body && count) {
         body.textContent = `Spectacular! Your ${count}-Pokémon parade defeated ${bossName}! Keep going — the next boss awaits at ${nextBossGoal} Pokémon!`;
       }
+      renderShinyBox(document.getElementById('victory-shiny-box'), shinySummary);
+    },
+
+    setPause(active, shinySummary = null) {
+      const el = document.getElementById('parade-pause-modal');
+      if (el) {
+        if (active) el.classList.remove('hidden');
+        else el.classList.add('hidden');
+      }
+      renderShinyBox(document.getElementById('pause-shiny-box'), shinySummary);
     },
 
     draw(ctx, count, targetCount, trainerX, trainerY, isPaused, boss = null) {

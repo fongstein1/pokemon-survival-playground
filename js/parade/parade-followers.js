@@ -4,6 +4,8 @@
  *  - Individual PMD Idle and Walk animations via G.Sprites.Animator
  *  - Path-history sampling ensures crisp path following and smooth turning
  *  - Dynamic spacing based on Pokémon body sizes
+ *  - Type-appropriate attacks and projectile moves in boss battles
+ *  - Shiny sparkle aura and tracking for run summary
  *  - Zero clumping, snapping, shaking, or blocking of the trainer
  *  - Supports 30+ simultaneous followers at 60 FPS
  *  - Automatic regrouping and manual whistle recall
@@ -14,14 +16,17 @@ G.Parade = G.Parade || {};
 G.Parade.Follower = class Follower {
   constructor(dex, spawnX, spawnY, slotIndex, shiny = false) {
     this.dex = dex;
+    this.isShiny = !!shiny;
     this.shiny = shiny && G.Sprites.hasShiny(dex);
     this.scale = G.Sprites.playerScale(dex);
     this.anim = new G.Sprites.Animator(dex, this.scale, this.shiny);
     this.bodyR = G.Sprites.bodyRadius(dex, this.scale);
     this.bodyH = G.Sprites.bodyHeight(dex, this.scale);
 
-    const mon = G.DEX.find(d => d.dex === dex);
+    const mon = (window.G && G.DEX) ? G.DEX.find(d => d.dex === dex) : null;
     this.name = mon ? mon.name : ('#' + dex);
+    this.types = (mon && mon.types && mon.types.length) ? mon.types : ['normal'];
+    this.primaryType = this.types[0] || 'normal';
 
     this.x = spawnX;
     this.y = spawnY;
@@ -71,24 +76,32 @@ G.Parade.Follower = class Follower {
         this.anim.loop('Walk', 1.2);
         this.anim.update(dt);
 
-        // Periodic elemental attack
+        // Periodic type-appropriate elemental attack
         this.attackTimer += dt;
         const cadence = 0.75 + (this.slotIndex % 5) * 0.12;
         if (this.attackTimer >= cadence) {
           this.attackTimer = 0;
-          let type = 'star';
-          if ([25, 921].includes(this.dex)) type = 'electric';
-          else if ([7, 363, 183, 194, 258, 60].includes(this.dex)) type = 'water';
-          else if ([4, 255, 37].includes(this.dex)) type = 'fire';
-          else if ([1, 722].includes(this.dex)) type = 'grass';
+          const move = (G.Parade.TYPE_MOVES && G.Parade.TYPE_MOVES[this.primaryType]) || {
+            name: 'Swift', type: this.primaryType || 'normal', kind: 'normal', color: '#ffd54f'
+          };
 
           const dmg = G.U.clamp(boss.boss.maxHp / (Math.max(40, this.slotIndex + 1) * 6), 0.12, 0.55);
           boss.addProjectile(
             this.x, this.y - 8,
-            boss.boss.x + G.U.rand(-12, 12), boss.boss.y - 12 + G.U.rand(-12, 12),
-            type,
+            boss.boss.x + G.U.rand(-14, 14), boss.boss.y - 12 + G.U.rand(-14, 14),
+            move,
             dmg
           );
+
+          // Type-tuned sound effect
+          if (Math.random() < 0.20 && G.Audio && G.Audio.sfx) {
+            G.Audio.sfx('shot', { type: this.primaryType });
+          }
+
+          // Occasional move shout banner
+          if (Math.random() < 0.04 && G.Parade.FX) {
+            G.Parade.FX.popText(this.x, this.y - 20, move.name + '!', move.color || '#fff');
+          }
         }
         return;
       } else if (boss.boss.state === 'fainting') {
@@ -179,10 +192,16 @@ G.Parade.Follower = class Follower {
   }
 
   draw(ctx) {
-    // Shadow
+    // Ground Shadow
     G.Sprites.drawShadow(ctx, this.dex, this.x, this.y, this.scale);
-    // Sprite
+
+    // Follower Sprite
     this.anim.draw(ctx, this.x, this.y);
+
+    // Shiny sparkle glints
+    if (this.isShiny && Math.random() < 0.18 && G.Parade.FX) {
+      G.Parade.FX.stars(this.x + G.U.rand(-10, 10), this.y - 12 + G.U.rand(-10, 10), 1);
+    }
   }
 };
 

@@ -9,7 +9,7 @@
  *    300: Dragonite (Dex 149) — Dragon firestorm
  *    350: Rayquaza  (Dex 384) — Celestial emerald aura
  *    400: Mewtwo    (Dex 150) — Ultimate psionic barrier
- *  - All parade followers form an attacking swarm in concentric rings
+ *  - Each attacking Pokémon in the parade uses authentic type-appropriate moves
  *  - Elemental projectile barrages and dynamic damage scaling
  *  - Celebratory victory and level over on defeat, preparing for the next boss!
  */
@@ -26,6 +26,27 @@ G.Parade.BOSSES = [
   { dex: 384, name: 'Rayquaza',  title: 'SKY RAYQUAZA',    icon: '🐉', scale: 1.55, baseHp: 350, particleColor: '#2e7d32' },
   { dex: 150, name: 'Mewtwo',    title: 'LEGENDARY MEWTWO',icon: '🔮', scale: 1.5, baseHp: 400, particleColor: '#7e57c2' }
 ];
+
+G.Parade.TYPE_MOVES = {
+  electric: { name: 'Thunderbolt',  type: 'electric', kind: 'electric', color: '#ffd33d', subColor: '#ffffff' },
+  fire:     { name: 'Flamethrower', type: 'fire',     kind: 'fire',     color: '#ff7b3d', subColor: '#ffea00' },
+  water:    { name: 'Water Gun',    type: 'water',    kind: 'water',    color: '#4b9bff', subColor: '#e1f5fe' },
+  grass:    { name: 'Razor Leaf',   type: 'grass',    kind: 'grass',    color: '#5fcb6a', subColor: '#2e7d32' },
+  ice:      { name: 'Ice Shard',    type: 'ice',      kind: 'ice',      color: '#7fe0e0', subColor: '#ffffff' },
+  psychic:  { name: 'Psybeam',      type: 'psychic',  kind: 'psychic',  color: '#ff5f9e', subColor: '#f8bbd0' },
+  ghost:    { name: 'Shadow Ball',  type: 'ghost',    kind: 'ghost',    color: '#7a6bc4', subColor: '#311b92' },
+  dragon:   { name: 'Dragon Breath',type: 'dragon',   kind: 'dragon',   color: '#6b58ff', subColor: '#00e5ff' },
+  fairy:    { name: 'Fairy Wind',   type: 'fairy',    kind: 'fairy',    color: '#ff9ed8', subColor: '#ffffff' },
+  normal:   { name: 'Swift',        type: 'normal',   kind: 'normal',   color: '#ffd54f', subColor: '#ffffff' },
+  fighting: { name: 'Focus Blast',  type: 'fighting', kind: 'fighting', color: '#e0533d', subColor: '#ff8a80' },
+  poison:   { name: 'Sludge Bomb',  type: 'poison',   kind: 'poison',   color: '#b45ec4', subColor: '#ea80fc' },
+  ground:   { name: 'Mud-Slap',     type: 'ground',   kind: 'ground',   color: '#d6b25c', subColor: '#795548' },
+  rock:     { name: 'Rock Throw',   type: 'rock',     kind: 'rock',     color: '#bfa96b', subColor: '#5d4037' },
+  steel:    { name: 'Flash Cannon', type: 'steel',    kind: 'steel',    color: '#a8b8c4', subColor: '#ffffff' },
+  flying:   { name: 'Air Slash',    type: 'flying',   kind: 'flying',   color: '#9bb8ff', subColor: '#ffffff' },
+  bug:      { name: 'Silver Wind',  type: 'bug',      kind: 'bug',      color: '#a3c43d', subColor: '#e8f5e9' },
+  dark:     { name: 'Dark Pulse',   type: 'dark',     kind: 'dark',     color: '#6b5c52', subColor: '#212121' }
+};
 
 G.Parade.BossManager = class BossManager {
   constructor() {
@@ -117,7 +138,8 @@ G.Parade.BossManager = class BossManager {
     }
   }
 
-  addProjectile(startX, startY, targetX, targetY, type = 'star', damage = 0.45) {
+  addProjectile(startX, startY, targetX, targetY, moveDef = {}, damage = 0.45) {
+    const type = moveDef.type || 'normal';
     this.projectiles.push({
       x: startX,
       y: startY,
@@ -126,13 +148,14 @@ G.Parade.BossManager = class BossManager {
       targetX,
       targetY,
       type,
+      kind: moveDef.kind || type,
+      name: moveDef.name || 'Swift',
+      color: moveDef.color || '#ffd54f',
+      subColor: moveDef.subColor || '#ffffff',
       damage,
       progress: 0,
       speed: 3.4,
-      color: type === 'electric' ? '#ffeb3b' :
-             type === 'water' ? '#29b6f6' :
-             type === 'fire' ? '#ff5722' :
-             type === 'grass' ? '#4caf50' : '#ffd54f'
+      angle: Math.atan2(targetY - startY, targetX - startX)
     });
   }
 
@@ -243,6 +266,166 @@ G.Parade.BossManager = class BossManager {
     }
   }
 
+  drawProjectile(ctx, p) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.angle);
+
+    switch (p.type) {
+      case 'electric': { // Thunderbolt: jagged zigzag bolt
+        ctx.strokeStyle = '#ffd33d';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(-9, 0);
+        ctx.lineTo(-4, -4);
+        ctx.lineTo(2, 4);
+        ctx.lineTo(9, 0);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        break;
+      }
+      case 'fire': { // Flamethrower: flickering teardrop flame
+        ctx.fillStyle = '#ff3d00';
+        ctx.beginPath();
+        ctx.moveTo(9, 0);
+        ctx.quadraticCurveTo(0, -6, -7, -3);
+        ctx.quadraticCurveTo(-10, 0, -7, 3);
+        ctx.quadraticCurveTo(0, 6, 9, 0);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffea00';
+        ctx.beginPath();
+        ctx.arc(1, 0, 3, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 'water': { // Water Gun / Bubble: shimmering droplet bubble
+        ctx.fillStyle = 'rgba(41, 182, 246, 0.85)';
+        ctx.beginPath();
+        ctx.arc(0, 0, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#0288d1';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(-1.8, -1.8, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 'grass': { // Razor Leaf: spinning emerald leaf
+        const rot = p.progress * 15;
+        ctx.rotate(rot);
+        ctx.fillStyle = '#4caf50';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 7, 3.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#1b5e20';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.strokeStyle = '#81c784';
+        ctx.beginPath();
+        ctx.moveTo(-6, 0); ctx.lineTo(6, 0);
+        ctx.stroke();
+        break;
+      }
+      case 'ice': { // Ice Shard: diamond crystal
+        ctx.fillStyle = '#b2ebf2';
+        ctx.beginPath();
+        ctx.moveTo(8, 0); ctx.lineTo(0, -4); ctx.lineTo(-6, 0); ctx.lineTo(0, 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#00acc1';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-1, -1, 3, 2);
+        break;
+      }
+      case 'fairy': { // Fairy Wind: 4-pointed radiant sparkle star
+        const rot = p.progress * 8;
+        ctx.rotate(rot);
+        ctx.fillStyle = '#ff80ab';
+        ctx.beginPath();
+        for (let i = 0; i < 4; i++) {
+          const a = (i * Math.PI) / 2;
+          ctx.lineTo(Math.cos(a) * 7, Math.sin(a) * 7);
+          ctx.lineTo(Math.cos(a + Math.PI / 4) * 2.2, Math.sin(a + Math.PI / 4) * 2.2);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'psychic': { // Psybeam: concentric rings
+        ctx.strokeStyle = '#ff4081';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath(); ctx.arc(0, 0, 4.5, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = '#e040fb';
+        ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI * 2); ctx.stroke();
+        break;
+      }
+      case 'ghost': { // Shadow Ball: dark orb with phantom core
+        ctx.fillStyle = '#512da8';
+        ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#311b92';
+        ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ea80fc';
+        ctx.beginPath(); ctx.arc(1, -1, 1.5, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'dragon': { // Dragon Breath: azure-violet draconic comet
+        ctx.fillStyle = '#7c4dff';
+        ctx.beginPath();
+        ctx.moveTo(8, 0); ctx.lineTo(-6, -4); ctx.lineTo(-4, 0); ctx.lineTo(-6, 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#00e5ff';
+        ctx.beginPath(); ctx.arc(1, 0, 2.5, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'rock':
+      case 'ground': { // Rock Throw / Mud: chunky spinning boulder
+        const rot = p.progress * 6;
+        ctx.rotate(rot);
+        ctx.fillStyle = '#8d6e63';
+        ctx.beginPath();
+        ctx.moveTo(-4, -4); ctx.lineTo(3, -5); ctx.lineTo(5, 1); ctx.lineTo(2, 5); ctx.lineTo(-4, 3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#4e342e';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        break;
+      }
+      default: { // Swift star (Normal / other)
+        const rot = p.progress * 10;
+        ctx.rotate(rot);
+        ctx.fillStyle = '#ffd54f';
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+          const a = (i * Math.PI * 2) / 5 - Math.PI / 2;
+          ctx.lineTo(Math.cos(a) * 6, Math.sin(a) * 6);
+          const aInner = a + Math.PI / 5;
+          ctx.lineTo(Math.cos(aInner) * 2.5, Math.sin(aInner) * 2.5);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(0, 0, 1.8, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+    }
+
+    ctx.restore();
+  }
+
   draw(ctx) {
     if (!this.boss || this.boss.state === 'defeated') return;
     const b = this.boss;
@@ -253,16 +436,9 @@ G.Parade.BossManager = class BossManager {
     // 2. Boss Sprite
     b.anim.draw(ctx, b.x, b.y);
 
-    // 3. Projectiles
+    // 3. Projectiles (custom rendered per type)
     for (const p of this.projectiles) {
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 1.8, 0, Math.PI * 2);
-      ctx.fill();
+      this.drawProjectile(ctx, p);
     }
 
     // 4. Boss Health Bar (only during battle)

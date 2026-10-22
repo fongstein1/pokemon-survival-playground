@@ -269,14 +269,23 @@ G.Parade.Game = (() => {
     G.Parade.FX.popText(trainer.x, trainer.y - 30, 'Parade Assemble! 🎶', '#64b5f6');
   }
 
+  function getShinySummary() {
+    const list = parade ? parade.followers.filter(f => f.isShiny || f.shiny) : [];
+    return {
+      totalCaught: parade ? parade.count : 0,
+      shinyCount: list.length,
+      shinies: list.map(f => ({
+        dex: f.dex,
+        name: f.name,
+        type: f.primaryType
+      }))
+    };
+  }
+
   function togglePause(force = null) {
     if (state === 'celebrating' || state === 'won') return;
     state = (force !== null) ? (force ? 'paused' : 'playing') : (state === 'paused' ? 'playing' : 'paused');
-    const modal = document.getElementById('parade-pause-modal');
-    if (modal) {
-      if (state === 'paused') modal.classList.remove('hidden');
-      else modal.classList.add('hidden');
-    }
+    G.Parade.HUD.setPause(state === 'paused', getShinySummary());
   }
 
   function triggerCelebration() {
@@ -298,7 +307,7 @@ G.Parade.Game = (() => {
       }, i * 350);
     }
 
-    G.Parade.HUD.setCelebration(true, parade.count);
+    G.Parade.HUD.setCelebration(true, parade.count, getShinySummary());
   }
 
   function triggerBoss(level = 1) {
@@ -310,7 +319,7 @@ G.Parade.Game = (() => {
     state = 'won';
     trainer.setCheer(true);
     parade.setCelebrate(true);
-    G.Parade.HUD.setVictory(true, parade.count, bossName, nextGoal);
+    G.Parade.HUD.setVictory(true, parade.count, bossName, nextGoal, getShinySummary());
 
     for (let i = 0; i < 6; i++) {
       setTimeout(() => {
@@ -463,6 +472,8 @@ G.Parade.Game = (() => {
     get balls() { return balls; },
     get boss() { return boss; },
     get targetGoal() { return targetGoal; },
-    get state() { return state; }
+    get state() { return state; },
+    getShinySummary,
+    get shinyCount() { return parade ? parade.followers.filter(f => f.isShiny || f.shiny).length : 0; }
   };
 })();

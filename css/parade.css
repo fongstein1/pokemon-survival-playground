@@ -286,3 +286,60 @@ html, body {
 .hidden {
   display: none !important;
 }
+
+/* Shiny Pokémon Summary Card */
+.shiny-summary-card {
+  background: linear-gradient(135deg, rgba(255, 253, 231, 0.98), rgba(255, 243, 224, 0.95));
+  border: 2px dashed #ffb300;
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin: 0 auto 18px auto;
+  max-width: 380px;
+  box-shadow: 0 4px 12px rgba(255, 179, 0, 0.15);
+  text-align: center;
+}
+
+.shiny-summary-title {
+  font-size: 15px;
+  font-weight: bold;
+  color: #e65100;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.shiny-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.shiny-chip {
+  background: #ffffff;
+  border: 1.5px solid #ffb300;
+  border-radius: 18px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: bold;
+  color: #d84315;
+  box-shadow: 0 2px 5px rgba(255, 152, 0, 0.2);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  animation: shineGlow 2s infinite alternate;
+}
+
+@keyframes shineGlow {
+  0% { box-shadow: 0 0 4px rgba(255, 193, 7, 0.4); }
+  100% { box-shadow: 0 0 10px rgba(255, 193, 7, 0.85); }
+}
+
+.shiny-empty-text {
+  font-size: 13px;
+  color: #795548;
+  line-height: 1.4;
+  margin: 0;
+}

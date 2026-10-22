@@ -499,6 +499,86 @@ async function runTests() {
       fail('8d. No Links to PokéSurvivor', e);
     }
 
+    // 8e. Type-Appropriate Moves in Battle
+    try {
+      const movesRes = await client.eval(`
+        (function() {
+          const g = G.Parade.Game;
+          g.restart();
+          // Add 4 followers of distinct types: Pikachu (electric), Charmander (fire), Squirtle (water), Bulbasaur (grass)
+          const fPikachu = g.parade.add(25, 0, 0);
+          const fCharmander = g.parade.add(4, 0, 0);
+          const fSquirtle = g.parade.add(7, 0, 0);
+          const fBulbasaur = g.parade.add(1, 0, 0);
+
+          const typesMatch = fPikachu.primaryType === 'electric' &&
+                             fCharmander.primaryType === 'fire' &&
+                             fSquirtle.primaryType === 'water' &&
+                             fBulbasaur.primaryType === 'grass';
+
+          // Spawn a boss and run update to generate projectiles
+          g.triggerBoss(1);
+          for (let i = 0; i < 25; i++) {
+            g.parade.update(0.1, g.trail, false, g.boss);
+            g.boss.update(0.01);
+          }
+
+          const projectileTypes = g.boss.projectiles.map(p => p.type);
+          const hasElectric = projectileTypes.includes('electric');
+          const hasFire = projectileTypes.includes('fire');
+          const hasWater = projectileTypes.includes('water');
+          const hasGrass = projectileTypes.includes('grass');
+
+          g.restart();
+          return { typesMatch, hasElectric, hasFire, hasWater, hasGrass, sampleTypes: Array.from(new Set(projectileTypes)) };
+        })()
+      `);
+
+      if (movesRes.typesMatch && movesRes.hasElectric && movesRes.hasFire && movesRes.hasWater && movesRes.hasGrass) {
+        pass('8e. Type-Appropriate Moves', `Followers attack using distinct type moves (Types seen: ${movesRes.sampleTypes.join(', ')})`);
+      } else {
+        fail('8e. Type-Appropriate Moves', JSON.stringify(movesRes));
+      }
+    } catch (e) {
+      fail('8e. Type-Appropriate Moves', e);
+    }
+
+    // 8f. Run Shiny Summary in Modals
+    try {
+      const shinyRes = await client.eval(`
+        (function() {
+          const g = G.Parade.Game;
+          g.restart();
+          // Add regular and shiny followers
+          g.parade.add(25, 0, 0, true); // Shiny Pikachu
+          g.parade.add(363, 0, 0, true); // Shiny Spheal
+          g.parade.add(1, 0, 0, false); // Regular Bulbasaur
+
+          const summary = g.getShinySummary();
+          g.trainer.x = 0;
+          g.trainer.y = 20;
+          // Trigger celebration
+          g.targetGoal = 3;
+          G.Parade.HUD.setCelebration(true, 3, summary);
+
+          const celebrateCard = document.getElementById('celebrate-shiny-box');
+          const hasChips = celebrateCard && celebrateCard.querySelectorAll('.shiny-chip').length === 2;
+          const containsPikachu = celebrateCard && celebrateCard.textContent.includes('Pikachu');
+
+          g.restart();
+          return { summaryCount: summary.shinyCount, hasChips, containsPikachu };
+        })()
+      `);
+
+      if (shinyRes.summaryCount === 2 && shinyRes.hasChips && shinyRes.containsPikachu) {
+        pass('8f. Run Shiny Summary', 'End of run modal displays summary of caught shiny Pokémon with badges and stars');
+      } else {
+        fail('8f. Run Shiny Summary', JSON.stringify(shinyRes));
+      }
+    } catch (e) {
+      fail('8f. Run Shiny Summary', e);
+    }
+
     // 9. Touch and keyboard controls
     try {
       const controlsOk = await client.eval(`

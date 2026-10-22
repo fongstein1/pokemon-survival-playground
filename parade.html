@@ -62,6 +62,7 @@
     <div class="modal-card">
       <h2 class="modal-title">Game Paused</h2>
       <p class="modal-body">Take a quick breather! Your parade of Pokémon is waiting for you.</p>
+      <div id="pause-shiny-box" class="shiny-summary-card"></div>
       <div class="modal-buttons">
         <button id="btn-resume" class="btn-primary">Resume Game ▶</button>
         <button id="btn-restart" class="btn-secondary">Restart Safari 🔄</button>
@@ -76,6 +77,7 @@
       <p class="modal-body" id="celebrate-modal-body">
         Wonderful job! You brought your happy Pokémon back to the Pokémon Center in a grand parade!
       </p>
+      <div id="celebrate-shiny-box" class="shiny-summary-card"></div>
       <div class="modal-buttons">
         <button id="btn-play-again" class="btn-primary">Play Again 🔄</button>
         <button id="btn-keep-parading" class="btn-secondary">Keep Parading! 🎈</button>
@@ -83,16 +85,17 @@
     </div>
   </div>
 
-  <!-- Grand Victory Modal (Weezing defeated) -->
+  <!-- Grand Victory Modal (Boss defeated) -->
   <div id="parade-victory" class="modal-overlay hidden">
     <div class="modal-card">
       <h2 class="modal-title">🏆 YOU WIN! 🏆</h2>
       <p class="modal-body" id="victory-modal-body">
-        Spectacular! Your 50-Pokémon parade defeated the wild Weezing! The Safari Park is saved!
+        Spectacular! Your parade defeated the wild boss! The Safari Park is saved!
       </p>
+      <div id="victory-shiny-box" class="shiny-summary-card"></div>
       <div class="modal-buttons">
         <button id="btn-victory-replay" class="btn-primary">Play Again 🔄</button>
-        <button id="btn-victory-keep" class="btn-secondary">Free Parade Mode 🎈</button>
+        <button id="btn-victory-keep" class="btn-secondary">Keep Parading 🎈</button>
       </div>
     </div>
   </div>
