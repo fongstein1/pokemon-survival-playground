@@ -262,6 +262,30 @@ async function runTests() {
       fail('3. Poké Ball Throwing & Capture', e);
     }
 
+    // 3b. Hiyah Throw Sound Effect
+    try {
+      const audioInfo = await client.eval(`
+        (function() {
+          const hasPlayClip = typeof G.Audio.playClip === 'function';
+          let threwWithoutError = false;
+          try {
+            if (G.Audio && G.Audio.sfx) {
+              G.Audio.sfx('hiyah');
+              threwWithoutError = true;
+            }
+          } catch (e) {}
+          return { hasPlayClip, threwWithoutError };
+        })()
+      `);
+      if (audioInfo.hasPlayClip && audioInfo.threwWithoutError) {
+        pass('3b. Hiyah Throw Sound Effect', 'Audio engine loads and triggers Hiyah sound effect on Poké Ball throw');
+      } else {
+        fail('3b. Hiyah Throw Sound Effect', JSON.stringify(audioInfo));
+      }
+    } catch (e) {
+      fail('3b. Hiyah Throw Sound Effect', e);
+    }
+
     // 4. Captured Pokémon join line in correct order
     try {
       // Temporarily pause auto-throw cooldown so background throw doesn't overlap

@@ -53,6 +53,18 @@ G.Audio = (() => {
     const nd = noiseBuf.getChannelData(0);
     for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
 
+    for (const k in clipBuffers) {
+      if (k.endsWith('_raw')) {
+        const baseName = k.replace('_raw', '');
+        const ab = clipBuffers[k];
+        delete clipBuffers[k];
+        ctx.decodeAudioData(ab, (decoded) => {
+          clipBuffers[baseName] = decoded;
+        }, () => {});
+      }
+    }
+    loadClip('hiyah', 'assets/audio/hiyah.wav');
+
     applyVolumes();
     return true;
   }
@@ -81,6 +93,58 @@ G.Audio = (() => {
   // ---------------- piezas básicas ----------------
 
   const midiFreq = m => 440 * Math.pow(2, (m - 69) / 12);
+
+  const clipBuffers = {};
+  const clipAudios = {};
+
+  function loadClip(name, url) {
+    if (clipBuffers[name] || clipAudios[name]) return;
+    try {
+      const a = new Audio(url);
+      a.preload = 'auto';
+      clipAudios[name] = a;
+    } catch (e) {}
+
+    if (typeof fetch === 'function') {
+      fetch(url)
+        .then(res => res.arrayBuffer())
+        .then(ab => {
+          if (ctx) {
+            ctx.decodeAudioData(ab, (decoded) => {
+              clipBuffers[name] = decoded;
+            }, () => {});
+          } else {
+            clipBuffers[name + '_raw'] = ab;
+          }
+        })
+        .catch(() => {});
+    }
+  }
+
+  function playClip(name, vol = 0.38) {
+    if (settings.muted || settings.sfx <= 0) return;
+
+    if (ctx && ctx.state === 'running' && clipBuffers[name]) {
+      try {
+        const src = ctx.createBufferSource();
+        src.buffer = clipBuffers[name];
+        const gain = ctx.createGain();
+        gain.gain.value = vol;
+        src.connect(gain);
+        gain.connect(sfxBus);
+        src.start();
+        return;
+      } catch (e) {}
+    }
+
+    try {
+      const a = clipAudios[name] || new Audio('assets/audio/' + name + '.wav');
+      a.volume = G.U.clamp(settings.sfx * vol * 2.2, 0, 1);
+      a.currentTime = 0;
+      const p = a.play();
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) {}
+  }
 
   function osc(type, f, t, end, dest) {
     const o = ctx.createOscillator();
@@ -416,6 +480,8 @@ G.Audio = (() => {
     chest:   () => { SFX.break(); arp('square', [1047, 1319, 1568, 2093], 0.06, 0.12, 0.04); },
     grass:   () => hiss(0.06, 0.03, 'highpass', 2600),
     ball:    () => { tone('triangle', 220, 70, 0.12, 0.12); hiss(0.08, 0.06, 'lowpass', 800); },
+    hiyah:   () => playClip('hiyah', 0.40),
+    throw:   () => playClip('hiyah', 0.40),
     shake:   () => tone('square', 420, 380, 0.04, 0.05),
     burst(o) {
       hiss(0.5, 0.14, 'bandpass', 400, 4000, 0, 0.8);
@@ -451,7 +517,7 @@ G.Audio = (() => {
   };
 
   // Separación mínima entre repeticiones del mismo efecto (ms).
-  const MIN_GAP = { hit: 45, faint: 60, xp: 35, coin: 50, grass: 70, shot: 70, hover: 40, break: 60, judge: 80 };
+  const MIN_GAP = { hit: 45, faint: 60, xp: 35, coin: 50, grass: 70, shot: 70, hover: 40, break: 60, judge: 80, hiyah: 100, throw: 100 };
 
   function sfx(name, opts) {
     if (!ctx || settings.muted || settings.sfx <= 0 || ctx.state !== 'running') return;
@@ -501,7 +567,7 @@ G.Audio = (() => {
   }
 
   return {
-    music, sfx, setVolume, toggleMute, unlock, debugMeter, debugStream,
+    music, sfx, setVolume, toggleMute, unlock, debugMeter, debugStream, loadClip, playClip,
     /** ¿Ya puede sonar? (el navegador sólo deja tras tocar algo, salvo excepciones) */
     canPlay() { return !!ctx && ctx.state === 'running'; },
     get settings() { return settings; },

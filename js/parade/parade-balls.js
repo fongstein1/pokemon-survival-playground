@@ -272,7 +272,7 @@ G.Parade.FlyingBall = class FlyingBall {
         this.state = 'wobbling';
         this.wobbleTimer = 0;
         this.y = this.groundY;
-        if (G.Audio && G.Audio.sfx) G.Audio.sfx('ball');
+        if (G.Audio && G.Audio.sfx) G.Audio.sfx('shake');
         G.Parade.FX.stars(this.x, this.y, 6);
 
         if (this.targetMon) {
@@ -414,17 +414,18 @@ G.Parade.BallManager = class BallManager {
       const dist = 140;
       const targetX = trainer.x + Math.cos(trainer.moveAngle) * dist;
       const targetY = trainer.y + Math.sin(trainer.moveAngle) * dist;
-      trainer.triggerThrow();
-      const ball = new G.Parade.FlyingBall(trainer.x, trainer.y - 14, null, targetX, targetY);
-      this.balls.push(ball);
+      this.throwBall(trainer, null, targetX, targetY);
       this.cooldownTimer = this.autoThrowCooldown;
       return true;
     }
   }
 
-  throwBall(trainer, targetMon) {
+  throwBall(trainer, targetMon, optTargetX = null, optTargetY = null) {
     trainer.triggerThrow();
-    const ball = new G.Parade.FlyingBall(trainer.x, trainer.y - 14, targetMon);
+    if (G.Audio && G.Audio.sfx) {
+      G.Audio.sfx('hiyah');
+    }
+    const ball = new G.Parade.FlyingBall(trainer.x, trainer.y - 14, targetMon, optTargetX, optTargetY);
     this.balls.push(ball);
   }
 
