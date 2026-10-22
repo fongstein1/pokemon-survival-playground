@@ -171,6 +171,11 @@ G.Parade.Follower = class Follower {
       this.y = pt.y;
     }
 
+    // Safety boundary clamping so followers never leave the map or cross tree fences
+    const pad = 35;
+    this.x = G.U.clamp(this.x, -560 + pad, 560 - pad);
+    this.y = G.U.clamp(this.y, -560 + pad, 560 - pad);
+
     // Shiny sparkle glints: authentic diamond sparkles, not fire!
     if (this.isShiny) {
       this.shinySparkTimer -= dt;
@@ -270,14 +275,16 @@ G.Parade.ParadeManager = class ParadeManager {
   }
 
   recalculateSpacings() {
-    let accDist = 28; // Distance behind James for 1st follower
+    const count = this.followers.length;
+    // Adaptive spacing: 28px for small parades, 24px for medium, 20px for large parades
+    const baseStep = count <= 15 ? 28 : count <= 45 ? 24 : 20;
+    let accDist = 24;
     for (let i = 0; i < this.followers.length; i++) {
       const f = this.followers[i];
       f.slotIndex = i;
       f.nominalDist = accDist;
-      // Add padding for next follower according to body radius
       const nextR = (i + 1 < this.followers.length) ? this.followers[i + 1].bodyR : 12;
-      const step = Math.max(26, f.bodyR + nextR + 8);
+      const step = Math.max(18, Math.min(baseStep, f.bodyR + nextR + 4));
       accDist += step;
     }
   }

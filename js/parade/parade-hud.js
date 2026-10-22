@@ -53,7 +53,10 @@ G.Parade.HUD = (() => {
       }
       const body = document.getElementById('celebrate-modal-body');
       if (body && count) {
-        body.textContent = `Wonderful job! You brought ${count} happy Pokémon back to the Pokémon Center in a grand parade!`;
+        const isKanto = (G.Parade.World && G.Parade.World.getScene) ? G.Parade.World.getScene() === 'kanto' : false;
+        body.textContent = isKanto
+          ? `Wonderful job! You brought ${count} happy Pokémon to Professor Oak's Research Lab in Pallet Town!`
+          : `Wonderful job! You brought ${count} happy Pokémon back to the Pokémon Center in a grand parade!`;
       }
       renderShinyBox(document.getElementById('celebrate-shiny-box'), shinySummary);
     },
@@ -71,7 +74,11 @@ G.Parade.HUD = (() => {
       }
       const body = document.getElementById('victory-modal-body');
       if (body && count) {
-        body.textContent = `Spectacular! Your ${count}-Pokémon parade defeated ${bossName}! Keep going — the next boss awaits at ${nextBossGoal} Pokémon!`;
+        if (bossName.toLowerCase() === 'weezing') {
+          body.textContent = `Spectacular! Your ${count}-Pokémon parade defeated Weezing! Tap Continue to enter Kanto: Route 1 & Pallet Town!`;
+        } else {
+          body.textContent = `Spectacular! Your ${count}-Pokémon parade defeated ${bossName}! Keep going — the next boss awaits at ${nextBossGoal} Pokémon!`;
+        }
       }
       renderShinyBox(document.getElementById('victory-shiny-box'), shinySummary);
     },
@@ -142,6 +149,29 @@ G.Parade.HUD = (() => {
         ctx.fillText('⭐', badgeX + badgeW - 28, badgeY + 23);
       }
 
+      // Region / Scene Pill below count badge
+      const sceneName = (G.Parade.World && G.Parade.World.getSceneName) ? G.Parade.World.getSceneName() : 'Safari Park';
+      const pillW = 122;
+      const pillH = 22;
+      const pillX = badgeX;
+      const pillY = badgeY + badgeH + 6;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.90)';
+      ctx.beginPath();
+      ctx.roundRect(pillX, pillY, pillW, pillH, 11);
+      ctx.fill();
+      ctx.strokeStyle = '#90a4ae';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = sceneName.includes('Kanto') ? '#1e88e5' : '#43a047';
+      ctx.beginPath();
+      ctx.arc(pillX + 11, pillY + 11, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillStyle = '#37474f';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(sceneName, pillX + 20, pillY + 11);
+
       // 2. Boss Alert Banner across the top if active
       if (boss && boss.banner) {
         ctx.fillStyle = 'rgba(183, 28, 28, 0.92)';
@@ -161,8 +191,8 @@ G.Parade.HUD = (() => {
 
       // 3. Minimalist Center Indicator (small compass token) once goal is met
       if (count >= targetCount && !celebrationActive && !victoryActive && (!boss || !boss.active)) {
-        const centerWorldX = 0;
-        const centerWorldY = 20;
+        const centerWorldX = (G.Parade.World && G.Parade.World.CENTER) ? G.Parade.World.CENTER.x : 0;
+        const centerWorldY = (G.Parade.World && G.Parade.World.CENTER) ? G.Parade.World.CENTER.plazaY : 20;
         const dx = centerWorldX - trainerX;
         const dy = centerWorldY - trainerY;
         const dist = Math.hypot(dx, dy);

@@ -16,9 +16,9 @@ G.Camera = {
   // también un alto mínimo de mundo, para no ver una franja estrecha.
   MIN_VIEW_H: 420,
 
-  resize(cssW, cssH, dpr = 1) {
+  resize(cssW, cssH, dpr = 1, zoom = 1) {
     this.dpr = dpr;
-    this.scale = Math.min(cssW / this.VIEW_W, cssH / this.MIN_VIEW_H);
+    this.scale = Math.min(cssW / this.VIEW_W, cssH / this.MIN_VIEW_H) * (zoom || 1);
     this.w = cssW / this.scale;
     this.h = cssH / this.scale;
   },

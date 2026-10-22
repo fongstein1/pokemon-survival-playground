@@ -19,6 +19,7 @@ G.Parade.Game = (() => {
   let boss;
 
   let targetGoal = 10;
+  let currentZoom = 1.0;
   let lastBossMilestone = 0;
   let state = 'playing'; // 'playing', 'paused', 'celebrating', 'won'
   let lastTime = 0;
@@ -42,6 +43,9 @@ G.Parade.Game = (() => {
     ctx = canvas.getContext('2d');
 
     // Reset components
+    if (G.Parade.World && G.Parade.World.setScene) {
+      G.Parade.World.setScene('safari');
+    }
     trainer = new G.Parade.Trainer(0, 45); // Start on Welcome Plaza
     trail = new G.Parade.PathTrail(trainer.x, trainer.y);
     parade = new G.Parade.ParadeManager();
@@ -100,7 +104,7 @@ G.Parade.Game = (() => {
     canvas.height = Math.round(h * dpr);
     canvas.style.width = w + 'px';
     canvas.style.height = h + 'px';
-    G.Camera.resize(w, h, dpr);
+    G.Camera.resize(w, h, dpr, currentZoom);
   }
 
   function setupButtonEvents() {
@@ -333,6 +337,9 @@ G.Parade.Game = (() => {
     state = 'playing';
     targetGoal = 10;
     lastBossMilestone = 0;
+    if (G.Parade.World && G.Parade.World.setScene) {
+      G.Parade.World.setScene('safari');
+    }
     trainer = new G.Parade.Trainer(0, 45);
     trail.reset(trainer.x, trainer.y);
     parade.reset();
@@ -355,15 +362,18 @@ G.Parade.Game = (() => {
     G.Parade.HUD.setCelebration(false);
     G.Parade.HUD.setVictory(false);
 
+    // If defeated first boss (count >= 50) and still in safari, transition to Kanto: Route 1!
+    if (parade.count >= 50 && G.Parade.World && G.Parade.World.getScene && G.Parade.World.getScene() === 'safari') {
+      G.Parade.World.setScene('kanto');
+      G.Parade.FX.popText(trainer.x, trainer.y - 45, 'Welcome to Kanto: Route 1! 🌿', '#90caf9');
+    }
+
     // Requirement: It shouldn't let you come back until you have 10 more Pokemon
     targetGoal = parade.count + 10;
     G.Parade.FX.popText(trainer.x, trainer.y - 30, `Goal: Catch ${targetGoal} Pokémon! 🎈`, '#ffca28');
 
-    // Re-establish clean parade trail behind trainer so followers don't clump
+    // DO NOT prefillBehind straight East into the void! Instead, recall followers safely along existing trail:
     if (trail && parade && parade.count > 0) {
-      const backAngle = trainer.moveAngle + Math.PI;
-      const maxDist = Math.max(1000, parade.maxDist + 200);
-      trail.prefillBehind(trainer.x, trainer.y, backAngle, maxDist);
       parade.recallAll(trail);
     }
   }
@@ -421,8 +431,29 @@ G.Parade.Game = (() => {
         triggerCelebration();
       }
 
+      // Dynamic camera zoom: smoothly pull back for large parades (70+ followers)
+      // so the whole parade line remains comfortably on-screen on mobile viewports
+      let targetZoom = 1.0;
+      if (parade && parade.count >= 30) {
+        targetZoom = Math.max(0.68, 1.0 - (parade.count - 30) * 0.0075);
+      }
+      currentZoom = G.U.damp(currentZoom, targetZoom, 2.5, dt);
+      const dpr = window.devicePixelRatio || 1;
+      G.Camera.resize(window.innerWidth, window.innerHeight, dpr, currentZoom);
+
+      // Center-of-mass framing: bias camera slightly along parade to keep followers framed
+      let camTargetX = trainer.x;
+      let camTargetY = trainer.y;
+      if (parade && parade.followers.length > 5) {
+        const midFollower = parade.followers[Math.floor(parade.followers.length * 0.35)];
+        if (midFollower) {
+          camTargetX = trainer.x * 0.72 + midFollower.x * 0.28;
+          camTargetY = trainer.y * 0.72 + midFollower.y * 0.28;
+        }
+      }
+
       // Camera follow
-      G.Camera.follow(trainer.x, trainer.y, dt);
+      G.Camera.follow(camTargetX, camTargetY, dt);
     }
 
     // --- RENDER ---

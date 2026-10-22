@@ -97,10 +97,12 @@ G.Parade.PathTrail = class PathTrail {
       const p = this.points[0];
       if (distBehind <= 0) return { x: p.x, y: p.y, angle: p.angle };
       // Extrapolate backwards along initial angle so followers never stack
+      const curlAngle = p.angle + Math.min(distBehind * 0.03, Math.PI * 2);
+      const r = Math.min(distBehind, 70);
       return {
-        x: p.x - Math.cos(p.angle) * distBehind,
-        y: p.y - Math.sin(p.angle) * distBehind,
-        angle: p.angle
+        x: G.U.clamp(p.x - Math.cos(curlAngle) * r, -520, 520),
+        y: G.U.clamp(p.y - Math.sin(curlAngle) * r, -520, 520),
+        angle: curlAngle
       };
     }
 
@@ -115,10 +117,12 @@ G.Parade.PathTrail = class PathTrail {
     // If sampling beyond the oldest recorded point, smoothly extrapolate backwards
     if (targetDist <= first.dist) {
       const deficit = first.dist - targetDist;
+      const curlAngle = first.angle + Math.min(deficit * 0.03, Math.PI * 2);
+      const r = Math.min(deficit, 70);
       return {
-        x: first.x - Math.cos(first.angle) * deficit,
-        y: first.y - Math.sin(first.angle) * deficit,
-        angle: first.angle
+        x: G.U.clamp(first.x - Math.cos(curlAngle) * r, -520, 520),
+        y: G.U.clamp(first.y - Math.sin(curlAngle) * r, -520, 520),
+        angle: curlAngle
       };
     }
 

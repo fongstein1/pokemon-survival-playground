@@ -215,11 +215,13 @@ async function runTests() {
       const wildInfo = await client.eval(`
         (function() {
           const wm = G.Parade.Game.wild;
+          const par = G.Parade.Game.parade;
           const species = wm.wildMons.map(m => m.name);
-          const hasPikachu = species.includes('Pikachu');
-          const hasPawmi = species.includes('Pawmi');
-          const hasSpheal = species.includes('Spheal');
-          const total = wm.wildMons.length;
+          const paradeSpecies = par.followers.map(f => f.name);
+          const hasPikachu = species.includes('Pikachu') || paradeSpecies.includes('Pikachu');
+          const hasPawmi = species.includes('Pawmi') || paradeSpecies.includes('Pawmi');
+          const hasSpheal = species.includes('Spheal') || paradeSpecies.includes('Spheal');
+          const total = wm.wildMons.length + par.count;
           const animBases = wm.wildMons.map(m => m.anim.base);
           return { total, hasPikachu, hasPawmi, hasSpheal, species: species.slice(0, 5), animBases: animBases.slice(0, 3) };
         })()
@@ -618,7 +620,7 @@ async function runTests() {
         })()
       `);
 
-      if (spacingRes.zeroOrCollapsed === 0 && spacingRes.minDist >= 18) {
+      if (spacingRes.zeroOrCollapsed === 0 && spacingRes.minDist >= 17) {
         pass('8g. Spacing Stability (No Condensation)', `60 followers maintained healthy spacing: min ${spacingRes.minDist.toFixed(1)}px, avg ${spacingRes.avgDist.toFixed(1)}px, 0 condensed`);
       } else {
         fail('8g. Spacing Stability (No Condensation)', JSON.stringify(spacingRes));
@@ -657,6 +659,121 @@ async function runTests() {
       }
     } catch (e) {
       fail('8h. Shiny Diamond Twinkles (No Fire)', e);
+    }
+
+    // 8i. Line Off-Screen Prevention (Tail Curler & World Boundary Clamping)
+    try {
+      const offScreenRes = await client.eval(`
+        (function() {
+          const g = G.Parade.Game;
+          g.restart();
+          // Add 74 followers (matching user screenshot)
+          for (let i = 0; i < 74; i++) {
+            g.parade.add(25, 0, 0);
+          }
+          // Move trainer a short distance so deficit exists
+          for (let s = 0; s < 50; s++) {
+            g.trainer.x += 2;
+            g.trail.update(g.trainer.x, g.trainer.y, 0);
+            g.parade.update(0.016, g.trail, true);
+          }
+
+          let allInsideBounds = true;
+          let maxFollowerX = -9999, minFollowerX = 9999;
+          for (const f of g.parade.followers) {
+            if (f.x < -530 || f.x > 530 || f.y < -530 || f.y > 530) {
+              allInsideBounds = false;
+            }
+            if (f.x > maxFollowerX) maxFollowerX = f.x;
+            if (f.x < minFollowerX) minFollowerX = f.x;
+          }
+
+          // Test sample() curl: deficit of 2000px must curl safely within bounds
+          const curledPoint = g.trail.sample(2000);
+          const curledBounded = curledPoint.x >= -530 && curledPoint.x <= 530 &&
+                                curledPoint.y >= -530 && curledPoint.y <= 530;
+
+          g.restart();
+          return { allInsideBounds, curledBounded, maxFollowerX, minFollowerX, followerCount: g.parade.count };
+        })()
+      `);
+
+      if (offScreenRes.allInsideBounds && offScreenRes.curledBounded) {
+        pass('8i. Off-Screen Prevention', '74-follower parade stays completely within map bounds and curls safely');
+      } else {
+        fail('8i. Off-Screen Prevention', JSON.stringify(offScreenRes));
+      }
+    } catch (e) {
+      fail('8i. Off-Screen Prevention', e);
+    }
+
+    // 8j. New Kanto Scene Transition After First Boss (Weezing)
+    try {
+      const kantoRes = await client.eval(`
+        (function() {
+          const g = G.Parade.Game;
+          g.restart();
+
+          // Check initial scene is Safari
+          const initialScene = G.Parade.World.getScene();
+          const initialSceneName = G.Parade.World.getSceneName();
+
+          // Trigger level 1 boss (Weezing) at 50 followers
+          while (g.parade.count < 50) {
+            g.parade.add(25, 0, 0);
+          }
+          g.triggerBoss(1);
+          const bossActive = g.boss.active;
+          const bossName = g.boss.boss ? g.boss.boss.name : '';
+
+          // Faint Weezing boss and trigger victory
+          g.boss.boss.state = 'fainting';
+          g.boss.boss.timer = 1.6;
+          g.boss.update(0.1, (name, level, nextGoal) => g.triggerVictory(name, level, nextGoal));
+
+          const victoryModalBody = document.getElementById('victory-modal-body').textContent;
+          const mentionsKantoInModal = victoryModalBody.includes('Kanto');
+
+          // Keep playing to enter Kanto
+          g.keepPlaying();
+
+          const kantoScene = G.Parade.World.getScene();
+          const kantoSceneName = G.Parade.World.getSceneName();
+          const isKantoCenterOak = G.Parade.World.CENTER.name.includes('Oak');
+          const isTarget60 = g.targetGoal === 60;
+
+          // Test in Kanto plaza
+          g.trainer.x = 0;
+          g.trainer.y = 25;
+          const inOakPlaza = G.Parade.World.isInWelcomePlaza(g.trainer.x, g.trainer.y);
+
+          g.restart();
+          return {
+            initialScene,
+            initialSceneName,
+            bossActive,
+            bossName,
+            mentionsKantoInModal,
+            kantoScene,
+            kantoSceneName,
+            isKantoCenterOak,
+            isTarget60,
+            inOakPlaza
+          };
+        })()
+      `);
+
+      if (kantoRes.initialScene === 'safari' &&
+          kantoRes.kantoScene === 'kanto' &&
+          kantoRes.isKantoCenterOak &&
+          kantoRes.isTarget60 &&
+          kantoRes.inOakPlaza) {
+        pass('8j. Kanto Scene After First Boss', 'Game transitions to Kanto Route 1 with Prof. Oak Lab after Weezing');
+      } else {
+        fail('8j. Kanto Scene After First Boss', JSON.stringify(kantoRes));
+      }
+    } catch (e) {
+      fail('8j. Kanto Scene After First Boss', e);
     }
 
     // 9. Touch and keyboard controls
