@@ -743,8 +743,8 @@ async function runTests() {
           const isTarget60 = g.targetGoal === 60;
 
           // Test in Kanto plaza
-          g.trainer.x = 0;
-          g.trainer.y = 25;
+          g.trainer.x = G.Parade.World.CENTER.plazaX !== undefined ? G.Parade.World.CENTER.plazaX : G.Parade.World.CENTER.x;
+          g.trainer.y = G.Parade.World.CENTER.plazaY !== undefined ? G.Parade.World.CENTER.plazaY : G.Parade.World.CENTER.y;
           const inOakPlaza = G.Parade.World.isInWelcomePlaza(g.trainer.x, g.trainer.y);
 
           g.restart();

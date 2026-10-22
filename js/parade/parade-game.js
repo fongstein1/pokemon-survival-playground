@@ -362,20 +362,44 @@ G.Parade.Game = (() => {
     G.Parade.HUD.setCelebration(false);
     G.Parade.HUD.setVictory(false);
 
-    // If defeated first boss (count >= 50) and still in safari, transition to Kanto: Route 1!
+    // If defeated first boss (count >= 50) and still in safari, transition to Pallet Town!
     if (parade.count >= 50 && G.Parade.World && G.Parade.World.getScene && G.Parade.World.getScene() === 'safari') {
       G.Parade.World.setScene('kanto');
-      G.Parade.FX.popText(trainer.x, trainer.y - 45, 'Welcome to Kanto: Route 1! 🌿', '#90caf9');
+
+      // Place trainer cleanly in the center of Pallet Town crossroads facing North towards Route 1
+      trainer.x = 0;
+      trainer.y = 0;
+      trainer.moveAngle = -Math.PI / 2;
+      trainer.dir = 1;
+
+      // Cleanly re-establish trail South along the main town road so all followers line up behind James
+      if (trail && parade && parade.count > 0) {
+        trail.reset(trainer.x, trainer.y);
+        trail.prefillBehind(trainer.x, trainer.y, Math.PI / 2, Math.max(800, parade.maxDist));
+        parade.recallAll(trail);
+      }
+
+      // Populate wild Pokémon across Pallet Town & Route 1
+      if (wild) {
+        wild.reset();
+        wild.populateInitial(22);
+      }
+
+      // Smooth camera reset
+      G.Camera.x = trainer.x;
+      G.Camera.y = trainer.y;
+
+      G.Parade.FX.popText(trainer.x, trainer.y - 45, 'Welcome to Pallet Town! 🏡', '#90caf9');
+    } else {
+      // Normal increment: recall followers along existing trail
+      if (trail && parade && parade.count > 0) {
+        parade.recallAll(trail);
+      }
     }
 
     // Requirement: It shouldn't let you come back until you have 10 more Pokemon
     targetGoal = parade.count + 10;
-    G.Parade.FX.popText(trainer.x, trainer.y - 30, `Goal: Catch ${targetGoal} Pokémon! 🎈`, '#ffca28');
-
-    // DO NOT prefillBehind straight East into the void! Instead, recall followers safely along existing trail:
-    if (trail && parade && parade.count > 0) {
-      parade.recallAll(trail);
-    }
+    G.Parade.FX.popText(trainer.x, trainer.y - 25, `Goal: Catch ${targetGoal} Pokémon! 🎈`, '#ffca28');
   }
 
   function onPokemonCaptured(dex, x, y, shiny) {
@@ -435,7 +459,9 @@ G.Parade.Game = (() => {
       // so the whole parade line remains comfortably on-screen on mobile viewports
       let targetZoom = 1.0;
       if (parade && parade.count >= 30) {
-        targetZoom = Math.max(0.68, 1.0 - (parade.count - 30) * 0.0075);
+        const isPortrait = window.innerHeight > window.innerWidth;
+        const minZ = isPortrait ? 0.85 : 0.72;
+        targetZoom = Math.max(minZ, 1.0 - (parade.count - 30) * 0.005);
       }
       currentZoom = G.U.damp(currentZoom, targetZoom, 2.5, dt);
       const dpr = window.devicePixelRatio || 1;
