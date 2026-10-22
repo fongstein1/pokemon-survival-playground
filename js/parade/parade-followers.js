@@ -49,6 +49,7 @@ G.Parade.Follower = class Follower {
     this.celebrateTimer = 0;
     this.celebrateOffset = (slotIndex % 5) * 0.2; // Staggered dance wave
     this.attackTimer = Math.random() * 0.8;
+    this.shinySparkTimer = G.U.rand(0.2, 0.6);
   }
 
   update(dt, trail, isLeaderWalking, celebrateMode = false, boss = null) {
@@ -154,15 +155,35 @@ G.Parade.Follower = class Follower {
     this.anim.update(dt);
 
     // Smoothly damp current distance along trail towards nominal slot distance
-    this.currentDist = G.U.damp(this.currentDist, this.nominalDist, 10, dt);
+    this.currentDist = G.U.damp(this.currentDist, this.nominalDist, 12, dt);
 
     // Sample path trail at follower's current distance
     const pt = trail.sample(this.currentDist);
     this.tangent = pt.angle;
 
-    // Smoothly interpolate follower position towards sampled trail position
-    this.x = G.U.damp(this.x, pt.x, 16, dt);
-    this.y = G.U.damp(this.y, pt.y, 16, dt);
+    // Follow the sampled trail position smoothly without cutting corners
+    const distToPt = Math.hypot(this.x - pt.x, this.y - pt.y);
+    if (distToPt > 3.0) {
+      this.x = G.U.damp(this.x, pt.x, 24, dt);
+      this.y = G.U.damp(this.y, pt.y, 24, dt);
+    } else {
+      this.x = pt.x;
+      this.y = pt.y;
+    }
+
+    // Shiny sparkle glints: authentic diamond sparkles, not fire!
+    if (this.isShiny) {
+      this.shinySparkTimer -= dt;
+      if (this.shinySparkTimer <= 0) {
+        this.shinySparkTimer = G.U.rand(0.35, 0.65);
+        if (G.Parade.FX && G.Parade.FX.twinkle) {
+          G.Parade.FX.twinkle(
+            this.x + G.U.rand(-this.bodyR * 0.9, this.bodyR * 0.9),
+            this.y - G.U.rand(6, this.bodyH * 0.9)
+          );
+        }
+      }
+    }
 
     // Calculate effective follower velocity
     const dx = this.x - this.prevX;
@@ -192,16 +213,23 @@ G.Parade.Follower = class Follower {
   }
 
   draw(ctx) {
+    // Subtle glowing cyan magical halo on the ground under shadow for shiny Pokémon
+    if (this.isShiny) {
+      ctx.save();
+      const pulse = 0.22 + Math.sin((this.celebrateTimer * 4) + this.slotIndex * 0.5) * 0.08;
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = '#7dd3fc';
+      ctx.beginPath();
+      ctx.ellipse(this.x, this.y, this.bodyR * 1.5, this.bodyR * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
     // Ground Shadow
     G.Sprites.drawShadow(ctx, this.dex, this.x, this.y, this.scale);
 
     // Follower Sprite
     this.anim.draw(ctx, this.x, this.y);
-
-    // Shiny sparkle glints
-    if (this.isShiny && Math.random() < 0.18 && G.Parade.FX) {
-      G.Parade.FX.stars(this.x + G.U.rand(-10, 10), this.y - 12 + G.U.rand(-10, 10), 1);
-    }
   }
 };
 
@@ -218,6 +246,12 @@ G.Parade.ParadeManager = class ParadeManager {
 
   get count() {
     return this.followers.length;
+  }
+
+  get maxDist() {
+    if (!this.followers.length) return 0;
+    const last = this.followers[this.followers.length - 1];
+    return last ? last.nominalDist : 0;
   }
 
   /**
@@ -261,6 +295,27 @@ G.Parade.ParadeManager = class ParadeManager {
   update(dt, trail, isLeaderWalking, boss = null) {
     for (const f of this.followers) {
       f.update(dt, trail, isLeaderWalking, this.celebrating, boss);
+    }
+
+    // Minimum physical separation safety pass: prevents followers from ever condensing or overlapping
+    if (!this.celebrating && (!boss || !boss.active)) {
+      for (let i = 0; i < this.followers.length - 1; i++) {
+        const f0 = this.followers[i];
+        const f1 = this.followers[i + 1];
+        if (f0.state === 'following' && f1.state === 'following') {
+          const dx = f1.x - f0.x;
+          const dy = f1.y - f0.y;
+          const dist = Math.hypot(dx, dy);
+          const minDist = Math.max(22, (f0.bodyR + f1.bodyR) * 0.95);
+          if (dist > 0.001 && dist < minDist) {
+            const push = (minDist - dist) * 0.6;
+            const nx = dx / dist;
+            const ny = dy / dist;
+            f1.x += nx * push;
+            f1.y += ny * push;
+          }
+        }
+      }
     }
   }
 

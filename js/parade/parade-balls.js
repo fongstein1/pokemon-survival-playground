@@ -32,6 +32,39 @@ G.Parade.FX = (() => {
       });
     },
 
+    /**
+     * Authentic Pokémon shiny sparkle: diamond 8-pointed star glint with
+     * white center, radiant golden arms, and sparkling cyan tips.
+     */
+    twinkle(x, y) {
+      spawn({
+        twinkle: true,
+        x, y,
+        vx: G.U.rand(-4, 4),
+        vy: G.U.rand(-6, -12),
+        t: 0,
+        life: G.U.rand(0.55, 0.8),
+        alpha: 1
+      });
+    },
+
+    twinkleBurst(x, y, count = 8) {
+      for (let i = 0; i < count; i++) {
+        const ang = (Math.PI * 2 * i) / count + G.U.rand(-0.25, 0.25);
+        const spd = G.U.rand(28, 72);
+        spawn({
+          twinkle: true,
+          x: x + Math.cos(ang) * 4,
+          y: y + Math.sin(ang) * 4,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd - 6,
+          t: 0,
+          life: G.U.rand(0.65, 0.95),
+          alpha: 1
+        });
+      }
+    },
+
     stars(x, y, count = 10) {
       const colors = ['#ffee58', '#ffd54f', '#ffca28', '#ffffff'];
       for (let i = 0; i < count; i++) {
@@ -86,10 +119,22 @@ G.Parade.FX = (() => {
         const p = particles[i];
         p.x += p.vx * dt;
         p.y += p.vy * dt;
-        if (p.gravity) p.vy += p.gravity * dt;
-        if (p.rotSpd) p.rot += p.rotSpd * dt;
-        p.alpha -= p.decay * dt;
-        if (p.alpha <= 0) particles.splice(i, 1);
+        if (p.twinkle) {
+          p.t += dt;
+          p.vx *= 0.95;
+          p.vy *= 0.95;
+          if (p.t >= p.life) {
+            particles.splice(i, 1);
+            continue;
+          }
+          // Smooth bell-curve alpha for twinkle
+          p.alpha = Math.sin((p.t / p.life) * Math.PI);
+        } else {
+          if (p.gravity) p.vy += p.gravity * dt;
+          if (p.rotSpd) p.rot += p.rotSpd * dt;
+          p.alpha -= p.decay * dt;
+          if (p.alpha <= 0) particles.splice(i, 1);
+        }
       }
       // Update floating texts
       for (let i = texts.length - 1; i >= 0; i--) {
@@ -106,7 +151,35 @@ G.Parade.FX = (() => {
       for (const p of particles) {
         ctx.save();
         ctx.globalAlpha = Math.max(0, p.alpha);
-        if (p.star) {
+        if (p.twinkle) {
+          const phase = G.U.clamp(p.t / p.life, 0, 1);
+          // Stages: 0 = point glint, 1 = diamond cross, 2 = 8-pt star sparkle with cyan tips
+          const st = phase < 0.15 ? 0 : phase < 0.36 ? 1 : phase < 0.70 ? 2 : phase < 0.88 ? 1 : 0;
+          const px = 2;
+          const X = Math.round(p.x / px) * px;
+          const Y = Math.round(p.y / px) * px;
+          const dot = (dx, dy, c) => {
+            ctx.fillStyle = c;
+            ctx.fillRect(X + dx * px, Y + dy * px, px, px);
+          };
+
+          const CORE = '#ffffff';
+          const GOLD = '#fef08a'; // Radiant light gold
+          const CYAN = '#7dd3fc'; // Sparkling diamond cyan
+          const SHINE = '#38bdf8'; // Deep sky blue
+
+          dot(0, 0, CORE);
+          if (st >= 1) {
+            for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) dot(dx, dy, GOLD);
+          }
+          if (st >= 2) {
+            for (const [dx, dy] of [[2, 0], [-2, 0], [0, 2], [0, -2]]) dot(dx, dy, GOLD);
+            for (const [dx, dy] of [[3, 0], [-3, 0], [0, 3], [0, -3]]) dot(dx, dy, CYAN);
+            for (const [dx, dy] of [[4, 0], [-4, 0], [0, 4], [0, -4]]) dot(dx, dy, SHINE);
+            for (const [dx, dy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) dot(dx, dy, CYAN);
+            for (const [dx, dy] of [[2, 2], [-2, 2], [2, -2], [-2, -2]]) dot(dx, dy, SHINE);
+          }
+        } else if (p.star) {
           ctx.fillStyle = p.color;
           ctx.beginPath();
           ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
@@ -224,12 +297,18 @@ G.Parade.FlyingBall = class FlyingBall {
           G.Audio.sfx('shinyGet');
         }
 
-        G.Parade.FX.stars(this.x, this.y, 14);
-        G.Parade.FX.confetti(this.x, this.y, 8);
-
-        if (this.targetMon) {
-          G.Parade.FX.popText(this.x, this.y - 18, `Got ${this.targetMon.name}! ✨`, '#ffd54f');
+        if (this.targetMon && this.targetMon.shiny) {
+          G.Parade.FX.twinkleBurst(this.x, this.y - 12, 12);
+          G.Parade.FX.confetti(this.x, this.y, 10);
+          G.Parade.FX.popText(this.x, this.y - 22, `✨ Got Shiny ${this.targetMon.name}! ✨`, '#7dd3fc');
           onCaptured(this.targetMon.dex, this.x, this.y, this.targetMon.shiny);
+        } else {
+          G.Parade.FX.stars(this.x, this.y, 14);
+          G.Parade.FX.confetti(this.x, this.y, 8);
+          if (this.targetMon) {
+            G.Parade.FX.popText(this.x, this.y - 18, `Got ${this.targetMon.name}! ✨`, '#ffd54f');
+            onCaptured(this.targetMon.dex, this.x, this.y, this.targetMon.shiny);
+          }
         }
       }
     }

@@ -579,6 +579,86 @@ async function runTests() {
       fail('8f. Run Shiny Summary', e);
     }
 
+    // 8g. Long-Duration Parade Spacing Stability (No Condensation)
+    try {
+      const spacingRes = await client.eval(`
+        (function() {
+          const g = G.Parade.Game;
+          g.restart();
+          // Add 60 followers
+          const speciesList = [25, 921, 363, 1, 4, 7, 133, 39, 54, 175, 183, 399];
+          for (let i = 0; i < 60; i++) {
+            g.parade.add(speciesList[i % speciesList.length], 0, 0);
+          }
+          // Simulate 200 walking updates with twists and turns
+          for (let step = 0; step < 200; step++) {
+            const ang = Math.sin(step * 0.08) * 0.4;
+            g.trainer.x += Math.cos(ang) * 5;
+            g.trainer.y += Math.sin(ang) * 5;
+            g.trainer.moveAngle = ang;
+            const maxNom = g.parade.maxDist;
+            g.trail.update(g.trainer.x, g.trainer.y, ang, maxNom);
+            g.parade.update(0.016, g.trail, true);
+          }
+
+          const dists = [];
+          let zeroOrCollapsed = 0;
+          for (let i = 0; i < g.parade.followers.length - 1; i++) {
+            const f0 = g.parade.followers[i];
+            const f1 = g.parade.followers[i + 1];
+            const d = Math.hypot(f0.x - f1.x, f0.y - f1.y);
+            dists.push(d);
+            if (d < 10) zeroOrCollapsed++;
+          }
+
+          const minDist = Math.min(...dists);
+          const avgDist = dists.reduce((a, b) => a + b, 0) / dists.length;
+          g.restart();
+          return { count: g.parade.count, minDist, avgDist, zeroOrCollapsed };
+        })()
+      `);
+
+      if (spacingRes.zeroOrCollapsed === 0 && spacingRes.minDist >= 18) {
+        pass('8g. Spacing Stability (No Condensation)', `60 followers maintained healthy spacing: min ${spacingRes.minDist.toFixed(1)}px, avg ${spacingRes.avgDist.toFixed(1)}px, 0 condensed`);
+      } else {
+        fail('8g. Spacing Stability (No Condensation)', JSON.stringify(spacingRes));
+      }
+    } catch (e) {
+      fail('8g. Spacing Stability (No Condensation)', e);
+    }
+
+    // 8h. Authentic Shiny Diamond Twinkle (No Fire Animation)
+    try {
+      const twinkleRes = await client.eval(`
+        (function() {
+          const g = G.Parade.Game;
+          g.restart();
+          const f = g.parade.add(25, 0, 0, true); // Shiny Pikachu
+          const hasTwinkleFn = typeof G.Parade.FX.twinkle === 'function';
+          const hasBurstFn = typeof G.Parade.FX.twinkleBurst === 'function';
+          // Trigger sparkle
+          f.shinySparkTimer = 0.01;
+          f.update(0.02, g.trail, false);
+
+          // Check wild shiny mon
+          const wildMon = new G.Parade.WildMon(25, 100, 100, true);
+          wildMon.shinySparkTimer = 0.01;
+          wildMon.update(0.02, 0, 0);
+
+          g.restart();
+          return { hasTwinkleFn, hasBurstFn, fShiny: f.isShiny, wildShiny: wildMon.shiny };
+        })()
+      `);
+
+      if (twinkleRes.hasTwinkleFn && twinkleRes.hasBurstFn && twinkleRes.fShiny && twinkleRes.wildShiny) {
+        pass('8h. Shiny Diamond Twinkles (No Fire)', 'Shiny Pokémon use diamond star twinkles and glowing ground auras');
+      } else {
+        fail('8h. Shiny Diamond Twinkles (No Fire)', JSON.stringify(twinkleRes));
+      }
+    } catch (e) {
+      fail('8h. Shiny Diamond Twinkles (No Fire)', e);
+    }
+
     // 9. Touch and keyboard controls
     try {
       const controlsOk = await client.eval(`

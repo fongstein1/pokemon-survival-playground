@@ -62,6 +62,7 @@ G.Parade.WildMon = class WildMon {
     this.wanderTargetY = y;
     this.captured = false;
     this.targeted = false; // Targeted by flying ball
+    this.shinySparkTimer = G.U.rand(0.2, 0.8);
   }
 
   update(dt, trainerX, trainerY) {
@@ -69,6 +70,20 @@ G.Parade.WildMon = class WildMon {
 
     this.anim.update(dt);
     this.stateTimer -= dt;
+
+    // Shiny sparkle glints: authentic diamond sparkles, not fire
+    if (this.shiny) {
+      this.shinySparkTimer -= dt;
+      if (this.shinySparkTimer <= 0) {
+        this.shinySparkTimer = G.U.rand(0.4, 0.8);
+        if (G.Parade.FX && G.Parade.FX.twinkle) {
+          G.Parade.FX.twinkle(
+            this.x + G.U.rand(-this.bodyR * 0.8, this.bodyR * 0.8),
+            this.y - G.U.rand(4, this.bodyH * 0.8)
+          );
+        }
+      }
+    }
 
     const distToTrainer = Math.hypot(this.x - trainerX, this.y - trainerY);
 
@@ -117,6 +132,16 @@ G.Parade.WildMon = class WildMon {
 
   draw(ctx) {
     if (this.captured) return;
+    if (this.shiny) {
+      ctx.save();
+      const pulse = 0.22 + Math.sin(this.stateTimer * 3) * 0.08;
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = '#7dd3fc';
+      ctx.beginPath();
+      ctx.ellipse(this.x, this.y, this.bodyR * 1.5, this.bodyR * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
     G.Sprites.drawShadow(ctx, this.dex, this.x, this.y, this.scale);
     this.anim.draw(ctx, this.x, this.y);
   }

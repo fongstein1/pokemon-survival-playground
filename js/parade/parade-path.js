@@ -4,7 +4,8 @@
  *  - Arc-length parameterization ensures uniform, smooth spacing between followers.
  *  - Followers follow the exact ground curve rather than cutting corners or clustering.
  *  - Amortized O(1) sampling queries with binary search fallback.
- *  - Bounded memory footprint (retains just enough trail for 60+ followers).
+ *  - Dynamic memory buffer scales with parade length, keeping all followers active.
+ *  - Backward extrapolation prevents tail condensation or stacking.
  */
 window.G = window.G || {};
 G.Parade = G.Parade || {};
@@ -24,7 +25,29 @@ G.Parade.PathTrail = class PathTrail {
     this.totalDist = 0;
   }
 
-  update(leaderX, leaderY, leaderAngle = Math.PI / 2) {
+  /**
+   * Seed trail points extending backward from the trainer to ensure
+   * immediate smooth line spacing for followers.
+   */
+  prefillBehind(x, y, backAngle, length = 1000) {
+    const step = 10;
+    const count = Math.ceil(length / step);
+    const pts = [];
+    for (let i = count; i >= 1; i--) {
+      const d = i * step;
+      pts.push({
+        x: x + Math.cos(backAngle) * d,
+        y: y + Math.sin(backAngle) * d,
+        angle: backAngle + Math.PI,
+        dist: (count - i) * step
+      });
+    }
+    pts.push({ x, y, angle: backAngle + Math.PI, dist: count * step });
+    this.points = pts;
+    this.totalDist = count * step;
+  }
+
+  update(leaderX, leaderY, leaderAngle = Math.PI / 2, maxKeepDist = 6000) {
     if (!this.points.length) {
       this.reset(leaderX, leaderY);
       return;
@@ -45,12 +68,12 @@ G.Parade.PathTrail = class PathTrail {
         dist: this.totalDist
       });
 
-      // Memory cleanup: keep up to 2500 units of trail behind current distance
-      const keepDist = this.totalDist - 2200;
-      if (this.points.length > 1200 && this.points[0].dist < keepDist) {
-        // Find cut index
+      // Dynamic memory cleanup: keep enough trail for all active followers in parade plus safety buffer
+      const buffer = Math.max(5000, maxKeepDist + 2000);
+      const keepDist = this.totalDist - buffer;
+      if (this.points.length > 2500 && this.points[0].dist < keepDist) {
         let cut = 0;
-        while (cut < this.points.length - 100 && this.points[cut + 1].dist < keepDist) {
+        while (cut < this.points.length - 200 && this.points[cut + 1].dist < keepDist) {
           cut++;
         }
         if (cut > 0) {
@@ -69,15 +92,34 @@ G.Parade.PathTrail = class PathTrail {
     if (!this.points.length) {
       return { x: 0, y: 0, angle: Math.PI / 2 };
     }
-    if (this.points.length === 1 || distBehind <= 0) {
+
+    if (this.points.length === 1) {
+      const p = this.points[0];
+      if (distBehind <= 0) return { x: p.x, y: p.y, angle: p.angle };
+      // Extrapolate backwards along initial angle so followers never stack
+      return {
+        x: p.x - Math.cos(p.angle) * distBehind,
+        y: p.y - Math.sin(p.angle) * distBehind,
+        angle: p.angle
+      };
+    }
+
+    if (distBehind <= 0) {
       const last = this.points[this.points.length - 1];
       return { x: last.x, y: last.y, angle: last.angle };
     }
 
     const targetDist = this.totalDist - distBehind;
     const first = this.points[0];
+
+    // If sampling beyond the oldest recorded point, smoothly extrapolate backwards
     if (targetDist <= first.dist) {
-      return { x: first.x, y: first.y, angle: first.angle };
+      const deficit = first.dist - targetDist;
+      return {
+        x: first.x - Math.cos(first.angle) * deficit,
+        y: first.y - Math.sin(first.angle) * deficit,
+        angle: first.angle
+      };
     }
 
     // Binary search for segment where points[lo].dist <= targetDist <= points[hi].dist

@@ -358,6 +358,14 @@ G.Parade.Game = (() => {
     // Requirement: It shouldn't let you come back until you have 10 more Pokemon
     targetGoal = parade.count + 10;
     G.Parade.FX.popText(trainer.x, trainer.y - 30, `Goal: Catch ${targetGoal} Pokémon! 🎈`, '#ffca28');
+
+    // Re-establish clean parade trail behind trainer so followers don't clump
+    if (trail && parade && parade.count > 0) {
+      const backAngle = trainer.moveAngle + Math.PI;
+      const maxDist = Math.max(1000, parade.maxDist + 200);
+      trail.prefillBehind(trainer.x, trainer.y, backAngle, maxDist);
+      parade.recallAll(trail);
+    }
   }
 
   function onPokemonCaptured(dex, x, y, shiny) {
@@ -380,8 +388,9 @@ G.Parade.Game = (() => {
       // Update trainer
       trainer.update(dt, axis);
 
-      // Record path trail
-      trail.update(trainer.x, trainer.y, trainer.moveAngle);
+      // Record path trail (passing required distance for current parade)
+      const requiredDist = (parade && parade.maxDist) ? parade.maxDist : (parade ? parade.count * 38 + 500 : 4000);
+      trail.update(trainer.x, trainer.y, trainer.moveAngle, requiredDist);
 
       // Update following parade (passes boss for swarm attack mode)
       parade.update(dt, trail, trainer.walking, boss);
